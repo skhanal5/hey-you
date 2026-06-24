@@ -19,6 +19,7 @@ final class DotView: NSView {
 
     var onStartSession: (() -> Void)?
     var onEndSession: (() -> Void)?
+    var onSetApiKey: (() -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -46,6 +47,8 @@ final class DotView: NSView {
             menu.addItem(NSMenuItem(title: "Start Session", action: #selector(startSessionAction), keyEquivalent: "s"))
             menu.addItem(.separator())
         }
+        menu.addItem(NSMenuItem(title: "Set API Key...", action: #selector(setApiKeyAction), keyEquivalent: ""))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit HeyYou", action: #selector(NSApp.terminate), keyEquivalent: "q"))
         return menu
     }
@@ -56,6 +59,10 @@ final class DotView: NSView {
 
     @objc private func endSessionAction() {
         onEndSession?()
+    }
+
+    @objc private func setApiKeyAction() {
+        onSetApiKey?()
     }
 
     private func updateColor() {

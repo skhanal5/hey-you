@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dictationService = DictationService()
     private lazy var triggerEngine = TriggerEngine(sessionManager: sessionManager)
     private let interventionService = InterventionService()
+    private let openRouter = OpenRouterClient()
     private let dotView: DotView = {
         let size: CGFloat = 16
         return DotView(frame: NSRect(origin: .zero, size: NSSize(width: size, height: size)))
@@ -37,6 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dotView.onEndSession = { [weak self] in
             self?.endSession()
         }
+        dotView.onSetApiKey = { [weak self] in
+            self?.promptForApiKey()
+        }
         dotView.isSessionActive = false
         dotWindow.replaceContent(with: dotView)
     }
@@ -61,12 +65,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         triggerEngine.onTrigger = { [weak self] sig in
             guard let self else { return }
-            let message = self.buildMessage(for: sig)
-            self.interventionService.speak(message)
+            let prompt = self.buildPrompt(for: sig)
+            Task {
+                let message: String
+                if KeychainService.read() != nil, let llm = try? await self.openRouter.generate(prompt: prompt) {
+                    message = llm
+                } else {
+                    message = self.fallbackMessage(for: sig)
+                }
+                await MainActor.run {
+                    self.interventionService.speak(message)
+                }
+            }
         }
     }
 
-    private func buildMessage(for sig: DoomscrollSignature) -> String {
+    private func buildPrompt(for sig: DoomscrollSignature) -> String {
+        let count = sessionManager.currentSession?.triggerCount ?? 0
+        let goals = sessionManager.currentSession?.goals
+        return """
+        You are HeyYou, a Mac app that catches users doomscrolling. You speak conversationally, like a friend. Keep responses under 2 sentences.
+
+        User context:
+        - Session goals: \(goals ?? "none set")
+        - Current site: \(sig.name)
+        - Times caught this session: \(count)
+
+        Respond conversationally:
+        """
+    }
+
+    private func fallbackMessage(for sig: DoomscrollSignature) -> String {
         let count = sessionManager.currentSession?.triggerCount ?? 0
         let goals = sessionManager.currentSession?.goals
 
@@ -91,6 +120,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             suffix = suffixes[n % 10]
         }
         return "\(n)\(suffix)"
+    }
+
+    private func promptForApiKey() {
+        let alert = NSAlert()
+        alert.messageText = "OpenRouter API Key"
+        alert.informativeText = "Get a free key at https://openrouter.ai/keys"
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty {
+            KeychainService.save(key: field.stringValue)
+        }
     }
 
     private func startSession() {
