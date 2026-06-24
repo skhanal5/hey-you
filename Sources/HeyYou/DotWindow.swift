@@ -1,8 +1,6 @@
 import AppKit
 
 final class DotWindow: NSWindow {
-    private let dotView: DotView
-
     init() {
         let size: CGFloat = 16
         let screenFrame = NSScreen.main?.visibleFrame ?? .zero
@@ -12,10 +10,8 @@ final class DotWindow: NSWindow {
         )
         let frame = NSRect(origin: origin, size: NSSize(width: size, height: size))
 
-        dotView = DotView(frame: NSRect(origin: .zero, size: frame.size))
-
         super.init(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
-        contentView = dotView
+        contentView = NSView()
         isOpaque = false
         backgroundColor = .clear
         level = .floating
@@ -24,7 +20,9 @@ final class DotWindow: NSWindow {
         hasShadow = false
     }
 
-    func setColor(_ color: NSColor) {
-        dotView.color = color
+    func replaceContent(with view: NSView) {
+        let size = frame.size
+        view.frame = NSRect(origin: .zero, size: size)
+        contentView = view
     }
 }
