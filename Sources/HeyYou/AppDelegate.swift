@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var dotWindow = DotWindow()
     private let sessionManager = SessionManager()
     private let dictationService = DictationService()
+    private lazy var triggerEngine = TriggerEngine(sessionManager: sessionManager)
     private let dotView: DotView = {
         let size: CGFloat = 16
         return DotView(frame: NSRect(origin: .zero, size: NSSize(width: size, height: size)))
@@ -13,17 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupDotView()
+        setupTriggerEngine()
         dotWindow.orderFront(nil)
 
         monitor.onAppChange = { [weak self] app in
             guard let self else { return }
             let classification = self.detector.classify(app)
-            switch classification {
-            case .productive:
-                self.dotView.color = .systemGreen
-            case .doomscroll:
-                self.dotView.color = .systemRed
-            }
+            self.triggerEngine.classificationDidChange(classification)
         }
         monitor.start()
     }
@@ -41,6 +38,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         dotView.isSessionActive = false
         dotWindow.replaceContent(with: dotView)
+    }
+
+    private func setupTriggerEngine() {
+        triggerEngine.onStateChange = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .focused:
+                self.dotView.color = .systemGreen
+                self.dotView.isCancelling = false
+            case .tracking:
+                self.dotView.color = .systemRed
+                self.dotView.isCancelling = false
+            case .pending:
+                self.dotView.isCancelling = true
+            case .triggered:
+                self.dotView.color = .systemRed
+                self.dotView.isCancelling = false
+            }
+        }
     }
 
     private func startSession() {
@@ -64,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func endSession() {
         dictationService.cancel()
         sessionManager.endSession()
+        triggerEngine.reset()
         dotView.isListening = false
         dotView.isSessionActive = false
         dotView.color = .systemGreen

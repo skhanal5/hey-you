@@ -9,6 +9,10 @@ final class DotView: NSView {
         didSet { updateListeningState() }
     }
 
+    var isCancelling = false {
+        didSet { updateCancelState() }
+    }
+
     var isSessionActive = false {
         didSet { needsDisplay = true }
     }
@@ -57,6 +61,8 @@ final class DotView: NSView {
     private func updateColor() {
         if isListening {
             layer?.backgroundColor = NSColor.systemBlue.cgColor
+        } else if isCancelling {
+            layer?.backgroundColor = NSColor.systemRed.cgColor
         } else {
             layer?.backgroundColor = color.cgColor
         }
@@ -64,18 +70,33 @@ final class DotView: NSView {
 
     private func updateListeningState() {
         if isListening {
-            let pulse = CABasicAnimation(keyPath: "opacity")
-            pulse.fromValue = 1.0
-            pulse.toValue = 0.3
-            pulse.duration = 0.6
-            pulse.autoreverses = true
-            pulse.repeatCount = .infinity
-            layer?.add(pulse, forKey: "pulse")
+            animatePulse(duration: 0.6, toValue: 0.3, key: "listeningPulse")
             updateColor()
         } else {
-            layer?.removeAnimation(forKey: "pulse")
+            layer?.removeAnimation(forKey: "listeningPulse")
             layer?.opacity = 1.0
             updateColor()
         }
+    }
+
+    private func updateCancelState() {
+        if isCancelling {
+            animatePulse(duration: 0.3, toValue: 0.4, key: "cancelPulse")
+            updateColor()
+        } else {
+            layer?.removeAnimation(forKey: "cancelPulse")
+            layer?.opacity = 1.0
+            updateColor()
+        }
+    }
+
+    private func animatePulse(duration: CFTimeInterval, toValue: Float, key: String) {
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 1.0
+        pulse.toValue = toValue
+        pulse.duration = duration
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        layer?.add(pulse, forKey: key)
     }
 }
