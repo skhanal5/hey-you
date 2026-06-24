@@ -18,5 +18,9 @@
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>HeyYou listens to your session goals so it can keep you accountable.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>HeyYou uses the microphone to capture your session goals via voice dictation.</string>
 </dict>
 </plist>
