@@ -47,7 +47,7 @@ final class DotView: NSView {
             menu.addItem(NSMenuItem(title: "Start Session", action: #selector(startSessionAction), keyEquivalent: "s"))
             menu.addItem(.separator())
         }
-        menu.addItem(NSMenuItem(title: "Set API Key...", action: #selector(setApiKeyAction), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Set OpenRouter API Key...", action: #selector(setApiKeyAction), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit HeyYou", action: #selector(NSApp.terminate), keyEquivalent: "q"))
         return menu

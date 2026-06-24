@@ -125,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func promptForApiKey() {
         let alert = NSAlert()
         alert.messageText = "OpenRouter API Key"
-        alert.informativeText = "Get a free key at https://openrouter.ai/keys"
+        alert.informativeText = "Enter your OpenRouter API key. Get a free one at https://openrouter.ai/keys"
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
         alert.accessoryView = field
         alert.addButton(withTitle: "Save")
