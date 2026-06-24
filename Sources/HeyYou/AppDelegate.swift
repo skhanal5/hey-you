@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let sessionManager = SessionManager()
     private let dictationService = DictationService()
     private lazy var triggerEngine = TriggerEngine(sessionManager: sessionManager)
+    private let interventionService = InterventionService()
     private let dotView: DotView = {
         let size: CGFloat = 16
         return DotView(frame: NSRect(origin: .zero, size: NSSize(width: size, height: size)))
@@ -47,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .focused:
                 self.dotView.color = .systemGreen
                 self.dotView.isCancelling = false
+                self.interventionService.stop()
             case .tracking:
                 self.dotView.color = .systemRed
                 self.dotView.isCancelling = false
@@ -57,6 +59,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.dotView.isCancelling = false
             }
         }
+        triggerEngine.onTrigger = { [weak self] sig in
+            guard let self else { return }
+            let message = self.buildMessage(for: sig)
+            self.interventionService.speak(message)
+        }
+    }
+
+    private func buildMessage(for sig: DoomscrollSignature) -> String {
+        let count = sessionManager.currentSession?.triggerCount ?? 0
+        let goals = sessionManager.currentSession?.goals
+
+        if count <= 1, let goals {
+            return "Hey you. You said you wanted to \(goals), but you're on \(sig.name)."
+        } else if count <= 1 {
+            return "Hey you. You're on \(sig.name). Should you be doing something else?"
+        } else if let goals {
+            return "Hey you. That's the \(ordinal(count)) time. Remember: \(goals)."
+        } else {
+            return "Hey you. That's the \(ordinal(count)) time on \(sig.name) today."
+        }
+    }
+
+    private func ordinal(_ n: Int) -> String {
+        let suffixes = ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"]
+        let mod100 = n % 100
+        let suffix: String
+        if 11 <= mod100 && mod100 <= 13 {
+            suffix = "th"
+        } else {
+            suffix = suffixes[n % 10]
+        }
+        return "\(n)\(suffix)"
     }
 
     private func startSession() {
