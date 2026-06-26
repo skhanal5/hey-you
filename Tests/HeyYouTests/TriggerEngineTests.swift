@@ -44,6 +44,14 @@ func repeatedDoomscrollKeepsTracking() {
 
 // MARK: - Async timer transitions
 
+/// Processes the run loop repeatedly until `condition` passes or `timeout` seconds elapse.
+private func poll(timeout: TimeInterval = 2, _ condition: () -> Bool) {
+  let deadline = Date().addingTimeInterval(timeout)
+  while !condition(), Date() < deadline {
+    RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+  }
+}
+
 @Test("Tracking transitions to pending after threshold")
 func trackingToPending() {
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.03, repeatThreshold: 0.03)
@@ -51,7 +59,7 @@ func trackingToPending() {
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
   #expect(engine.state != .focused)
 
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+  poll { if case .pending = engine.state { true } else { false } }
 
   if case .pending = engine.state {
     // expected
@@ -67,7 +75,7 @@ func pendingToTriggered() {
   let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+  poll { if case .triggered = engine.state { true } else { false } }
 
   if case .triggered(let s, _) = engine.state {
     #expect(s == sig)
@@ -84,7 +92,8 @@ func triggerIncrementsCount() {
   let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+  poll { sm.currentSession?.triggerCount == 1 }
+
   #expect(sm.currentSession?.triggerCount == 1)
 }
 
@@ -95,7 +104,8 @@ func triggeredSuppressesDuringCooldown() {
   let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+  poll { if case .triggered = engine.state { true } else { false } }
+
   guard case .triggered = engine.state else {
     Issue.record("Expected triggered state")
     return
@@ -130,7 +140,9 @@ func triggerFiresCallback() {
   engine.onTrigger = { triggeredSig = $0 }
 
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+
+  poll { triggeredSig != nil }
+
   #expect(triggeredSig == sig)
 }
 
@@ -142,7 +154,7 @@ func cooldownAllowsReset() {
   let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+  poll { if case .triggered = engine.state { true } else { false } }
 
   if case .triggered = engine.state {
     // expected
