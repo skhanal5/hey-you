@@ -5,9 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let detector = DoomscrollDetector(signatures: defaultDoomscrollSignatures)
     private let sessionManager = SessionManager()
     private let dictationService = DictationService()
+    private let keychain = KeychainService()
     private lazy var triggerEngine = TriggerEngine(sessionManager: sessionManager)
     private let interventionService = InterventionService()
-    private lazy var openRouter = OpenRouterClient(keyProvider: { KeychainService.read() })
+    private lazy var openRouter = OpenRouterClient(keychain: keychain)
     private var menuBarController: MenuBarController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -16,7 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dictationService: dictationService,
             triggerEngine: triggerEngine,
             interventionService: interventionService,
-            openRouter: openRouter
+            openRouter: openRouter,
+            keychain: keychain
         )
 
         setupTriggerEngine()
@@ -55,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
             Task {
                 let message: String
-                if KeychainService.read() != nil, let llm = try? await self.openRouter.generate(prompt: prompt) {
+                if self.keychain.read() != nil, let llm = try? await self.openRouter.generate(prompt: prompt) {
                     message = llm
                 } else {
                     message = PromptBuilder.fallbackMessage(for: sig, triggerCount: count, goals: goals)

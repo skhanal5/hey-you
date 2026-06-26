@@ -1,23 +1,46 @@
 import Foundation
 import Security
 
-final class KeychainService {
+protocol KeychainServiceProtocol: AnyObject {
+  func read() -> String?
+  @discardableResult func save(key: String) -> Bool
+  func delete()
+}
+
+struct KeychainCache {
+  private var cachedKey: String?
+  private var keyChecked = false
+
+  mutating func read(fetch: () -> String?) -> String? {
+    if keyChecked {
+      return cachedKey
+    }
+    keyChecked = true
+    let value = fetch()
+    cachedKey = value
+    return value
+  }
+
+  mutating func invalidate() {
+    cachedKey = nil
+    keyChecked = false
+  }
+}
+
+final class KeychainService: KeychainServiceProtocol {
   static let service = "com.skhanal5.hey-you"
   static let account = "openrouter-key"
 
-  private static var cachedKey: String?
-  private static var keyChecked = false
+  private var cache = KeychainCache()
 
   @discardableResult
-  static func save(key: String) -> Bool {
-    NSLog("[KEYCHAIN] \(#function) called, account=\(account)")
-    keyChecked = false
-    cachedKey = nil
+  func save(key: String) -> Bool {
+    cache.invalidate()
     let data = Data(key.utf8)
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
+      kSecAttrService as String: Self.service,
+      kSecAttrAccount as String: Self.account,
     ]
     SecItemDelete(query as CFDictionary)
 
@@ -27,39 +50,30 @@ final class KeychainService {
     return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
   }
 
-  static func read() -> String? {
-    NSLog("[KEYCHAIN] \(#function) called, account=\(account)")
-    if keyChecked {
-      NSLog("[KEYCHAIN] \(#function) returning cached value")
-      return cachedKey
+  func read() -> String? {
+    cache.read { () -> String? in
+      let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: Self.service,
+        kSecAttrAccount as String: Self.account,
+        kSecReturnData as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+      ]
+      var result: AnyObject?
+      guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+            let data = result as? Data else {
+        return nil
+      }
+      return String(data: data, encoding: .utf8)
     }
-    keyChecked = true
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
-      kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne,
-    ]
-    var result: AnyObject?
-    guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-          let data = result as? Data else {
-      NSLog("[KEYCHAIN] \(#function) no item found")
-      return nil
-    }
-    cachedKey = String(data: data, encoding: .utf8)
-    NSLog("[KEYCHAIN] \(#function) key loaded")
-    return cachedKey
   }
 
-  static func delete() {
-    NSLog("[KEYCHAIN] \(#function) called, account=\(account)")
-    keyChecked = false
-    cachedKey = nil
+  func delete() {
+    cache.invalidate()
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
+      kSecAttrService as String: Self.service,
+      kSecAttrAccount as String: Self.account,
     ]
     SecItemDelete(query as CFDictionary)
   }

@@ -14,15 +14,17 @@ final class TriggerEngine {
 
     private let sessionManager: SessionManager
     private let pendingDelay: TimeInterval
-    private var trackingTimer: Timer?
-    private var pendingTimer: Timer?
+    private let scheduler: Scheduler
+    private var trackingCancellable: Cancellable?
+    private var pendingCancellable: Cancellable?
 
     var onStateChange: ((EngineState) -> Void)?
     var onTrigger: ((DoomscrollSignature) -> Void)?
 
-    init(sessionManager: SessionManager, pendingDelay: TimeInterval = 2.5) {
+    init(sessionManager: SessionManager, pendingDelay: TimeInterval = 2.5, scheduler: Scheduler = TimerScheduler()) {
         self.sessionManager = sessionManager
         self.pendingDelay = pendingDelay
+        self.scheduler = scheduler
     }
 
     func classificationDidChange(_ classification: Classification) {
@@ -42,14 +44,14 @@ final class TriggerEngine {
     private func beginTracking(_ sig: DoomscrollSignature) {
         state = .tracking(signature: sig, startTime: Date())
         let delay = threshold(for: sig)
-        trackingTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+        trackingCancellable = scheduler.schedule(after: delay) { [weak self] in
             self?.beginPending(sig)
         }
     }
 
     private func beginPending(_ sig: DoomscrollSignature) {
         state = .pending(signature: sig, cancelDeadline: Date().addingTimeInterval(pendingDelay))
-        pendingTimer = Timer.scheduledTimer(withTimeInterval: pendingDelay, repeats: false) { [weak self] _ in
+        pendingCancellable = scheduler.schedule(after: pendingDelay) { [weak self] in
             self?.fireTrigger(sig)
         }
     }
@@ -69,10 +71,10 @@ final class TriggerEngine {
     }
 
     private func cancelTimers() {
-        trackingTimer?.invalidate()
-        trackingTimer = nil
-        pendingTimer?.invalidate()
-        pendingTimer = nil
+        trackingCancellable?.cancel()
+        trackingCancellable = nil
+        pendingCancellable?.cancel()
+        pendingCancellable = nil
     }
 
     func reset() {

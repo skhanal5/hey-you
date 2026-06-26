@@ -42,24 +42,14 @@ func repeatedDoomscrollKeepsTracking() {
   }
 }
 
-// MARK: - Async timer transitions
-
-/// Processes the run loop repeatedly until `condition` passes or `timeout` seconds elapse.
-private func poll(timeout: TimeInterval = 2, _ condition: () -> Bool) {
-  let deadline = Date().addingTimeInterval(timeout)
-  while !condition(), Date() < deadline {
-    RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
-  }
-}
-
 @Test("Tracking transitions to pending after threshold")
 func trackingToPending() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.03, repeatThreshold: 0.03)
-  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.5)
+  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.5, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
-  #expect(engine.state != .focused)
 
-  poll { if case .pending = engine.state { true } else { false } }
+  scheduler.advance(by: 0.03)
 
   if case .pending = engine.state {
     // expected
@@ -70,12 +60,14 @@ func trackingToPending() {
 
 @Test("Pending transitions to triggered after cancel window")
 func pendingToTriggered() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
+  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  poll { if case .triggered = engine.state { true } else { false } }
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
 
   if case .triggered(let s, _) = engine.state {
     #expect(s == sig)
@@ -86,25 +78,29 @@ func pendingToTriggered() {
 
 @Test("Trigger increments session trigger count")
 func triggerIncrementsCount() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
   sm.startSession(goals: "test")
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
+  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  poll { sm.currentSession?.triggerCount == 1 }
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
 
   #expect(sm.currentSession?.triggerCount == 1)
 }
 
 @Test("Triggered state suppresses new doomscroll during cooldown")
 func triggeredSuppressesDuringCooldown() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
+  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  poll { if case .triggered = engine.state { true } else { false } }
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
 
   guard case .triggered = engine.state else {
     Issue.record("Expected triggered state")
@@ -134,31 +130,33 @@ func productiveResetsTracking() {
 
 @Test("Trigger fires onTrigger callback")
 func triggerFiresCallback() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
-  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.02)
+  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.02, scheduler: scheduler)
   var triggeredSig: DoomscrollSignature?
   engine.onTrigger = { triggeredSig = $0 }
 
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  poll { triggeredSig != nil }
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
 
   #expect(triggeredSig == sig)
 }
 
-@Test("Cooldown expires and allows productive reset")
-func cooldownAllowsReset() {
+@Test("Cooldown allows productive reset")
+func cooldownAllowsProductiveReset() {
+  let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
   sm.startSession(goals: "test")
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02)
+  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
-  poll { if case .triggered = engine.state { true } else { false } }
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
 
-  if case .triggered = engine.state {
-    // expected
-  } else {
+  guard case .triggered = engine.state else {
     Issue.record("Expected triggered state")
     return
   }
@@ -166,3 +164,5 @@ func cooldownAllowsReset() {
   engine.classificationDidChange(.productive)
   #expect(engine.state == .focused)
 }
+
+
