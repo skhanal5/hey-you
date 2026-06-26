@@ -2,13 +2,16 @@ import AppKit
 
 enum AppIconState {
   case idle
+  case listening
   case active
   case detecting
 
   init(from state: MenuBarState) {
     switch state {
-    case .idle, .listening:
+    case .idle:
       self = .idle
+    case .listening:
+      self = .listening
     case .active:
       self = .active
     case .detecting, .speaking:
@@ -41,6 +44,15 @@ enum MenuBarIcon {
     switch iconState {
     case .idle:
       break
+
+    case .listening:
+      let pulse = 1.0 + 0.08 * sin(CGFloat(animPhase * 4.2))
+      let r = innerRadius * pulse
+      let rect = NSRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
+      let path = NSBezierPath(ovalIn: rect)
+      path.lineWidth = innerStroke
+      NSColor.black.setStroke()
+      path.stroke()
 
     case .active:
       let t = (animPhase.truncatingRemainder(dividingBy: 2)) / 2
