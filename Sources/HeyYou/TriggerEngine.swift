@@ -12,15 +12,17 @@ final class TriggerEngine {
         didSet { onStateChange?(state) }
     }
 
-    private var sessionManager: SessionManager
+    private let sessionManager: SessionManager
+    private let pendingDelay: TimeInterval
     private var trackingTimer: Timer?
     private var pendingTimer: Timer?
 
     var onStateChange: ((EngineState) -> Void)?
     var onTrigger: ((DoomscrollSignature) -> Void)?
 
-    init(sessionManager: SessionManager) {
+    init(sessionManager: SessionManager, pendingDelay: TimeInterval = 2.5) {
         self.sessionManager = sessionManager
+        self.pendingDelay = pendingDelay
     }
 
     func classificationDidChange(_ classification: Classification) {
@@ -46,8 +48,8 @@ final class TriggerEngine {
     }
 
     private func beginPending(_ sig: DoomscrollSignature) {
-        state = .pending(signature: sig, cancelDeadline: Date().addingTimeInterval(2.5))
-        pendingTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: false) { [weak self] _ in
+        state = .pending(signature: sig, cancelDeadline: Date().addingTimeInterval(pendingDelay))
+        pendingTimer = Timer.scheduledTimer(withTimeInterval: pendingDelay, repeats: false) { [weak self] _ in
             self?.fireTrigger(sig)
         }
     }
