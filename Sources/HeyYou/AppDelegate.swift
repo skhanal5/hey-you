@@ -7,7 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dictationService = DictationService()
     private lazy var triggerEngine = TriggerEngine(sessionManager: sessionManager)
     private let interventionService = InterventionService()
-    private let openRouter = OpenRouterClient()
+    private lazy var openRouter = OpenRouterClient(keyProvider: { KeychainService.read() })
     private var menuBarController: MenuBarController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {

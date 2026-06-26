@@ -34,10 +34,18 @@ final class PreferencesWindowController: NSWindowController {
     panel.isReleasedWhenClosed = false
     panel.becomesKeyOnlyIfNeeded = false
     panel.level = .modalPanel
+    let savedKey = KeychainService.read() ?? ""
     panel.contentView = NSHostingView(
-      rootView: PreferencesView(onClose: { [weak panel] in
-        panel?.close()
-      })
+      rootView: PreferencesView(
+        apiKey: savedKey,
+        onSave: { [weak panel] key in
+          if !key.isEmpty { KeychainService.save(key: key) }
+          panel?.close()
+        },
+        onClose: { [weak panel] in
+          panel?.close()
+        }
+      )
     )
     panel.center()
 
