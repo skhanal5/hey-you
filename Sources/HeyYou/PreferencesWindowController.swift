@@ -30,7 +30,7 @@ final class PreferencesPanel: NSWindow {
 
 final class PreferencesWindowController: NSWindowController {
 
-  init() {
+  init(keychain: KeychainServiceProtocol) {
     let panel = PreferencesPanel(
       contentRect: NSRect(x: 0, y: 0, width: 400, height: 280),
       styleMask: [.titled, .closable],
@@ -43,9 +43,9 @@ final class PreferencesWindowController: NSWindowController {
 
     panel.contentView = NSHostingView(
       rootView: PreferencesView(
-        keyProvider: { KeychainService.read() },
-        onSave: { key in KeychainService.save(key: key) },
-        onRemove: { KeychainService.delete() },
+        keyProvider: { [keychain] in keychain.read() },
+        onSave: { [keychain] key in keychain.save(key: key) },
+        onRemove: { [keychain] in keychain.delete() },
         onClose: { [weak panel] in panel?.close() },
         onDidReadKey: { [weak panel] in
           panel?.orderFrontRegardless()

@@ -9,6 +9,7 @@ final class MenuBarController: NSObject {
   private let triggerEngine: TriggerEngine
   private let interventionService: InterventionService
   private let openRouter: OpenRouterClient
+  private let keychain: KeychainServiceProtocol
 
   private var state: MenuBarState = .idle {
     didSet { stateDidChange() }
@@ -23,13 +24,15 @@ final class MenuBarController: NSObject {
     dictationService: DictationService,
     triggerEngine: TriggerEngine,
     interventionService: InterventionService,
-    openRouter: OpenRouterClient
+    openRouter: OpenRouterClient,
+    keychain: KeychainServiceProtocol
   ) {
     self.sessionManager = sessionManager
     self.dictationService = dictationService
     self.triggerEngine = triggerEngine
     self.interventionService = interventionService
     self.openRouter = openRouter
+    self.keychain = keychain
 
     super.init()
 
@@ -155,7 +158,7 @@ final class MenuBarController: NSObject {
   // MARK: - Actions
 
   @objc private func startSession() {
-    guard KeychainService.read() != nil else {
+    guard keychain.read() != nil else {
       showPreferences()
       return
     }
@@ -216,7 +219,7 @@ final class MenuBarController: NSObject {
 
   @objc private func showPreferences() {
     if preferencesController == nil {
-      preferencesController = PreferencesWindowController()
+      preferencesController = PreferencesWindowController(keychain: keychain)
     }
     preferencesController?.show()
   }
