@@ -33,7 +33,6 @@ final class PreferencesWindowController: NSWindowController {
     panel.title = "Preferences"
     panel.isReleasedWhenClosed = false
     panel.becomesKeyOnlyIfNeeded = false
-    panel.level = .modalPanel
     let savedKey = KeychainService.read() ?? ""
     panel.contentView = NSHostingView(
       rootView: PreferencesView(
