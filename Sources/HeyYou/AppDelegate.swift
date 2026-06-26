@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMainMenu()
         setupDotView()
         setupTriggerEngine()
         dotWindow.orderFront(nil)
@@ -39,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.endSession()
         }
         dotView.onSetApiKey = { [weak self] in
-            self?.promptForApiKey()
+            self?.showPreferences()
         }
         dotView.isSessionActive = false
         dotWindow.replaceContent(with: dotView)
@@ -122,17 +123,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return "\(n)\(suffix)"
     }
 
-    private func promptForApiKey() {
-        let alert = NSAlert()
-        alert.messageText = "OpenRouter API Key"
-        alert.informativeText = "Enter your OpenRouter API key. Get a free one at https://openrouter.ai/keys"
-        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 22))
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty {
-            KeychainService.save(key: field.stringValue)
-        }
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+        mainMenu.addItem(editItem)
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    private func showPreferences() {
+        let controller = PreferencesWindowController()
+        controller.show()
     }
 
     private func startSession() {

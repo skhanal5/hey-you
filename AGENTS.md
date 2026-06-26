@@ -41,6 +41,11 @@ Each layer is testable independently.
 - Minimal UI, maximum impact.
 - The app talks to you. It does not show dialog boxes.
 
+## Menu bar app conventions
+
+- Activation policy is `.accessory` (no Dock icon, no app switcher entry, set via `LSUIElement` in Info.plist).
+- For preference panels that need keyboard input: use `.nonactivatingPanel` style mask on an `NSPanel` subclass with `canBecomeKey { true }` to let the panel become key without the app becoming active. Do NOT use `NSApp.runModal(for:)` (breaks SwiftUI TextField in `.accessory` apps) or `NSApp.setActivationPolicy(.regular)` (causes menu bar name change and close lag).
+
 ## PR workflow
 
 Every feature, fix, or change must go through a PR.
