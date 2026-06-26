@@ -1,8 +1,14 @@
 import Foundation
 
+protocol URLSessionProtocol {
+    func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: URLSessionProtocol {}
+
 final class OpenRouterClient {
     let model: String
-    private let session: URLSession
+    private let session: URLSessionProtocol
     private let baseURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
     private let keychain: KeychainServiceProtocol
 
@@ -16,10 +22,10 @@ final class OpenRouterClient {
         let messages: [Message]
     }
 
-    init(model: String = "openrouter/free", keychain: KeychainServiceProtocol) {
+    init(model: String = "openrouter/free", keychain: KeychainServiceProtocol, session: URLSessionProtocol = URLSession.shared) {
         self.model = model
         self.keychain = keychain
-        self.session = .shared
+        self.session = session
     }
 
     struct Response: Decodable {
