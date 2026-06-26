@@ -1,9 +1,16 @@
 import AppKit
 import SwiftUI
 
-final class PreferencesPanel: NSPanel {
-  override var canBecomeKey: Bool { true }
-  override var canBecomeMain: Bool { true }
+final class PreferencesPanel: NSWindow {
+  private var isOrderingFront = false
+
+  override func becomeKey() {
+    super.becomeKey()
+    guard !isOrderingFront else { return }
+    isOrderingFront = true
+    orderFrontRegardless()
+    isOrderingFront = false
+  }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.modifierFlags.contains(.command),
@@ -22,27 +29,27 @@ final class PreferencesPanel: NSPanel {
 }
 
 final class PreferencesWindowController: NSWindowController {
+
   init() {
     let panel = PreferencesPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 360, height: 200),
-      styleMask: [.titled, .closable, .nonactivatingPanel],
+      contentRect: NSRect(x: 0, y: 0, width: 400, height: 280),
+      styleMask: [.titled, .closable],
       backing: .buffered,
       defer: false
     )
 
     panel.title = "Preferences"
     panel.isReleasedWhenClosed = false
-    panel.becomesKeyOnlyIfNeeded = false
-    let savedKey = KeychainService.read() ?? ""
+
     panel.contentView = NSHostingView(
       rootView: PreferencesView(
-        apiKey: savedKey,
-        onSave: { [weak panel] key in
-          if !key.isEmpty { KeychainService.save(key: key) }
-          panel?.close()
-        },
-        onClose: { [weak panel] in
-          panel?.close()
+        keyProvider: { KeychainService.read() },
+        onSave: { key in KeychainService.save(key: key) },
+        onRemove: { KeychainService.delete() },
+        onClose: { [weak panel] in panel?.close() },
+        onDidReadKey: { [weak panel] in
+          panel?.orderFrontRegardless()
+          panel?.makeKey()
         }
       )
     )
@@ -56,7 +63,7 @@ final class PreferencesWindowController: NSWindowController {
   }
 
   func show() {
-    guard let panel = window else { return }
-    panel.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+    window?.makeKeyAndOrderFront(nil)
   }
 }

@@ -212,9 +212,13 @@ final class MenuBarController: NSObject {
 
   // MARK: - Preferences
 
+  private var preferencesController: PreferencesWindowController?
+
   @objc private func showPreferences() {
-    let controller = PreferencesWindowController()
-    controller.show()
+    if preferencesController == nil {
+      preferencesController = PreferencesWindowController()
+    }
+    preferencesController?.show()
   }
 
   @objc private func quit() {
