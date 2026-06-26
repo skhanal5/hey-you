@@ -145,29 +145,11 @@ final class MenuBarController: NSObject {
   }
 
   func setDetecting(_ detecting: Bool) {
-    switch (state, detecting) {
-    case (.active(let g, let t), true):
-      state = .detecting(goals: g, triggers: t)
-    case (.detecting(let g, let t), false):
-      state = .active(goals: g, triggers: t)
-    case (.speaking(let g, let t), false):
-      state = .active(goals: g, triggers: t)
-    default:
-      break
-    }
+    state = state.settingDetecting(detecting)
   }
 
   func setSpeaking(_ speaking: Bool) {
-    switch (state, speaking) {
-    case (.active(let g, let t), true):
-      state = .speaking(goals: g, triggers: t)
-    case (.detecting(let g, let t), true):
-      state = .speaking(goals: g, triggers: t)
-    case (.speaking(let g, let t), false):
-      state = .detecting(goals: g, triggers: t)
-    default:
-      break
-    }
+    state = state.settingSpeaking(speaking)
   }
 
   // MARK: - Actions
