@@ -44,7 +44,10 @@ Each layer is testable independently.
 ## Menu bar app conventions
 
 - Activation policy is `.accessory` (no Dock icon, no app switcher entry, set via `LSUIElement` in Info.plist).
-- For preference panels that need keyboard input: use `.nonactivatingPanel` style mask on an `NSPanel` subclass with `canBecomeKey { true }` to let the panel become key without the app becoming active. Do NOT use `NSApp.runModal(for:)` (breaks SwiftUI TextField in `.accessory` apps) or `NSApp.setActivationPolicy(.regular)` (causes menu bar name change and close lag).
+- For preference windows: use `NSWindow` (not `NSPanel`). `NSPanel` with `.nonactivatingPanel` causes rapid deactivation/reactivation cycling on Mission Control restore in `.accessory` apps. `NSWindow` at default window level behaves correctly.
+- Override `becomeKey()` to call `orderFrontRegardless()` — this brings the window to front when Mission Control restores it via CGSOrderWindow, without triggering the `.accessory` deactivation cycle.
+- After Keychain read in `onAppear`: call `orderFrontRegardless()` + `makeKey()` instead of `NSApp.activate()` + `makeKeyAndOrderFront()`. `NSApp.activate()` triggers system deactivation of `.accessory` apps ~2s later.
+- Do NOT use `NSApp.runModal(for:)` (breaks SwiftUI TextField in `.accessory` apps) or `NSApp.setActivationPolicy(.regular)` (causes menu bar name change and close lag).
 
 ## PR workflow
 
