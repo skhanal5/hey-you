@@ -2,9 +2,16 @@ import SwiftUI
 import Speech
 
 struct PreferencesView: View {
-  @State private var apiKey = ""
+  @State private var apiKey: String
   @State private var micStatus = "Checking..."
+  let onSave: (String) -> Void
   let onClose: () -> Void
+
+  init(apiKey: String, onSave: @escaping (String) -> Void, onClose: @escaping () -> Void) {
+    self._apiKey = State(initialValue: apiKey)
+    self.onSave = onSave
+    self.onClose = onClose
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -30,22 +37,15 @@ struct PreferencesView: View {
       HStack {
         Spacer()
         Button("Cancel") { onClose() }
-        Button("Save") { save() }
+        Button("Save") { onSave(apiKey.trimmingCharacters(in: .whitespacesAndNewlines)) }
           .keyboardShortcut(.defaultAction)
       }
     }
     .padding(20)
     .frame(width: 360, height: 200)
     .onAppear {
-      apiKey = KeychainService.read() ?? ""
       micStatus = micPermissionStatus()
     }
-  }
-
-  private func save() {
-    let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !key.isEmpty { KeychainService.save(key: key) }
-    onClose()
   }
 
   private func grantMicPermission() {

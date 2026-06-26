@@ -4,6 +4,7 @@ final class OpenRouterClient {
     let model: String
     private let session = URLSession.shared
     private let baseURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+    private let keyProvider: () -> String?
 
     struct Message: Codable {
         let role: String
@@ -15,8 +16,9 @@ final class OpenRouterClient {
         let messages: [Message]
     }
 
-    init(model: String = "openrouter/free") {
+    init(model: String = "openrouter/free", keyProvider: @escaping () -> String?) {
         self.model = model
+        self.keyProvider = keyProvider
     }
 
     struct Response: Decodable {
@@ -28,7 +30,7 @@ final class OpenRouterClient {
     }
 
     func generate(prompt: String) async throws -> String {
-        guard let key = KeychainService.read() else {
+        guard let key = keyProvider() else {
             throw Error.noKey
         }
 
