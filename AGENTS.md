@@ -26,9 +26,9 @@ HeyYou is a macOS AppKit app. Its architecture is layered:
 1. **Detection** — Accessibility API reads frontmost window title
 2. **Classification** — Matches against configurable doomscroll signatures
 3. **Session** — Voice dictation for goals, manual end
-4. **Trigger** — Time + frequency weighted, pulse → cancel → speak
+4. **Trigger** — Time + frequency weighted, focused → tracking → pending → triggered
 5. **Intervention** — AVSpeechSynthesizer with LLM-generated messages
-6. **UI** — Floating colored dot (green/yellow/red), draggable
+6. **UI** — Menu bar icon (sonar ring, 4 states), contextual menu
 7. **LLM** — OpenRouter free API for conversational messages
 
 Each layer is testable independently.
@@ -43,11 +43,25 @@ Each layer is testable independently.
 
 ## Menu bar app conventions
 
-- Activation policy is `.accessory` (no Dock icon, no app switcher entry, set via `LSUIElement` in Info.plist).
+- Activation policy is `.accessory` (no Dock icon, no app switcher entry). Set via `LSUIElement` in Info.plist **and** `app.setActivationPolicy(.accessory)` in `main.swift` before `app.run()`.
 - For preference windows: use `NSWindow` (not `NSPanel`). `NSPanel` with `.nonactivatingPanel` causes rapid deactivation/reactivation cycling on Mission Control restore in `.accessory` apps. `NSWindow` at default window level behaves correctly.
-- Override `becomeKey()` to call `orderFrontRegardless()` — this brings the window to front when Mission Control restores it via CGSOrderWindow, without triggering the `.accessory` deactivation cycle.
-- After Keychain read in `onAppear`: call `orderFrontRegardless()` + `makeKey()` instead of `NSApp.activate()` + `makeKeyAndOrderFront()`. `NSApp.activate()` triggers system deactivation of `.accessory` apps ~2s later.
+- Override `becomeKey()` to call `orderFrontRegardless()` — brings the window to front when Mission Control restores it via CGSOrderWindow, without triggering the `.accessory` deactivation cycle.
+- In `show()` (initial open): call `NSApp.activate(ignoringOtherApps: true)` + `makeKeyAndOrderFront(nil)` — the app needs activation to bring the window to front for the first time.
+- After Keychain read in `onAppear`: call `orderFrontRegardless()` + `makeKey()` instead of `NSApp.activate()` + `makeKeyAndOrderFront()`. `NSApp.activate()` in `.accessory` apps triggers system deactivation ~2s later, so avoid it in notification handlers or after async callbacks.
 - Do NOT use `NSApp.runModal(for:)` (breaks SwiftUI TextField in `.accessory` apps) or `NSApp.setActivationPolicy(.regular)` (causes menu bar name change and close lag).
+
+## Testing
+
+- Use Swift Testing framework (not XCTest, not Quick/Nimble).
+- Each source file in `Sources/` has a corresponding test file in `Tests/HeyYouTests/`.
+- **Every code change includes a test that would catch a regression.** If the change touches behavior, add or update a test.
+- One behavior per test function. Tests are small and focused.
+- `@Test("Description of behavior")` — descriptive sentences, not function names masquerading as descriptions.
+- Arrange-Act-Assert pattern: blank lines separate setup from action from verification.
+- `#expect(condition)` for assertions. `Issue.record("message")` for custom failure in pattern-matching branches.
+- Tests must be **deterministic**: no real timers, no real network, no real keychain in unit tests.
+- Dependencies are injected via initializers. No static globals or hardcoded singletons.
+- `poll()` loops with RunLoop stepping are forbidden — use a virtual time scheduler instead.
 
 ## PR workflow
 
