@@ -15,14 +15,6 @@ enum AppIconState {
       self = .detecting
     }
   }
-
-  var color: NSColor {
-    switch self {
-    case .idle: return .systemGreen
-    case .active: return .systemYellow
-    case .detecting: return .systemRed
-    }
-  }
 }
 
 enum MenuBarIcon {

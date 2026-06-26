@@ -50,13 +50,6 @@ final class PreferencesWindowController: NSWindowController {
 
   func show() {
     guard let panel = window else { return }
-    panel.delegate = self
     panel.makeKeyAndOrderFront(nil)
-  }
-}
-
-extension PreferencesWindowController: NSWindowDelegate {
-  func windowWillClose(_ notification: Notification) {
-    // no-op
   }
 }
