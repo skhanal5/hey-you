@@ -105,9 +105,9 @@ final class MenuBarController: NSObject {
     lastFrameTime = Date()
 
     switch AppIconState(from: state) {
-    case .idle:
+    case .idle, .detecting:
       updateIcon()
-    case .active, .detecting:
+    case .listening, .active:
       let interval: TimeInterval = 1.0 / 30
       lastFrameTime = Date()
       animTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
