@@ -9,7 +9,7 @@ struct DoomscrollSignature: Equatable {
     func matches(appName: String, windowTitle: String?) -> Bool {
         let haystack = "\(appName) \(windowTitle ?? "")"
         for pattern in patterns {
-            let regex = try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
             let range = NSRange(haystack.startIndex..., in: haystack)
             if regex.firstMatch(in: haystack, range: range) != nil {
                 return true

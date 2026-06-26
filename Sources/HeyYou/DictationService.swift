@@ -6,10 +6,15 @@ final class DictationService {
         case unauthorized
         case noRecognizer
         case recognitionFailed(Swift.Error)
+        case notRecording
     }
 
     private let recognizer: SFSpeechRecognizer?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var audioEngine: AVAudioEngine?
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var transcriptionContinuation: CheckedContinuation<String, Swift.Error>?
+    private var bestTranscription = ""
 
     init(locale: Locale = .current) {
         recognizer = SFSpeechRecognizer(locale: locale)
@@ -23,46 +28,73 @@ final class DictationService {
         }
     }
 
-    func transcribe(duration: TimeInterval) async throws -> String {
+    func startRecording() async throws {
         guard await requestAuthorization() else { throw Error.unauthorized }
         guard let recognizer, recognizer.isAvailable else { throw Error.noRecognizer }
 
-        let audioEngine = AVAudioEngine()
-        let inputNode = audioEngine.inputNode
+        bestTranscription = ""
 
-        let recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        recognitionRequest.shouldReportPartialResults = false
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
 
-        return try await withCheckedThrowingContinuation { continuation in
-            recognitionTask = recognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
-                if let result {
-                    self?.recognitionTask = nil
-                    continuation.resume(returning: result.bestTranscription.formattedString)
-                } else if let error {
-                    self?.recognitionTask = nil
-                    continuation.resume(throwing: Error.recognitionFailed(error))
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            if let result {
+                self?.bestTranscription = result.bestTranscription.formattedString
+                if result.isFinal {
+                    self?.transcriptionContinuation?.resume(returning: result.bestTranscription.formattedString)
+                    self?.transcriptionContinuation = nil
+                    self?.cleanup()
                 }
             }
-
-            let format = inputNode.outputFormat(forBus: 0)
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-                recognitionRequest.append(buffer)
-            }
-
-            audioEngine.prepare()
-            try? audioEngine.start()
-
-            Task {
-                try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-                audioEngine.stop()
-                inputNode.removeTap(onBus: 0)
-                recognitionRequest.endAudio()
+            if let error {
+                self?.transcriptionContinuation?.resume(throwing: Error.recognitionFailed(error))
+                self?.transcriptionContinuation = nil
+                self?.cleanup()
             }
         }
+
+        let format = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            request.append(buffer)
+        }
+
+        engine.prepare()
+        try engine.start()
+
+        audioEngine = engine
+        recognitionRequest = request
+    }
+
+    func stopRecording() async throws -> String {
+        guard let engine = audioEngine, let request = recognitionRequest else {
+            throw Error.notRecording
+        }
+
+        if let state = recognitionTask?.state, state == .completed || state == .canceling || state == .finishing {
+            cleanup()
+            return bestTranscription
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            transcriptionContinuation = continuation
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            request.endAudio()
+        }
+    }
+
+    private func cleanup() {
+        audioEngine = nil
+        recognitionRequest = nil
+        recognitionTask = nil
     }
 
     func cancel() {
         recognitionTask?.cancel()
-        recognitionTask = nil
+        cleanup()
+        transcriptionContinuation?.resume(throwing: Error.notRecording)
+        transcriptionContinuation = nil
     }
 }

@@ -1,6 +1,7 @@
 import Foundation
 
 final class OpenRouterClient {
+    let model: String
     private let session = URLSession.shared
     private let baseURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
 
@@ -10,8 +11,12 @@ final class OpenRouterClient {
     }
 
     struct Request: Encodable {
-        let model = "openrouter/free"
+        let model: String
         let messages: [Message]
+    }
+
+    init(model: String = "openrouter/free") {
+        self.model = model
     }
 
     struct Response: Decodable {
@@ -32,7 +37,7 @@ final class OpenRouterClient {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
 
-        let body = Request(messages: [Message(role: "user", content: prompt)])
+        let body = Request(model: model, messages: [Message(role: "user", content: prompt)])
         urlRequest.httpBody = try JSONEncoder().encode(body)
 
         let (data, _) = try await session.data(for: urlRequest)
