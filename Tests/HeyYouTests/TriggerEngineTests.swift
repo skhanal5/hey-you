@@ -165,4 +165,24 @@ func cooldownAllowsProductiveReset() {
   #expect(engine.state == .focused)
 }
 
+@Test("Snooze suppresses trigger and resets to focused")
+func snoozeSuppressesTrigger() {
+  let scheduler = TestScheduler()
+  let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
+  let sm = SessionManager()
+  sm.startSession(goals: "test")
+  sm.snoozeUntil = Date().addingTimeInterval(300)
+  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  var triggerFired = false
+  engine.onTrigger = { _ in triggerFired = true }
+
+  engine.classificationDidChange(.doomscroll(matchedBy: sig))
+
+  scheduler.advance(by: 0.01)
+  scheduler.advance(by: 0.02)
+
+  #expect(!triggerFired)
+  #expect(engine.state == .focused)
+}
+
 
