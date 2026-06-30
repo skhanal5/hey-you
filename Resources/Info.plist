@@ -21,7 +21,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>HeyYou listens to your session goals so it can keep you accountable.</string>
+    <string>Hey You uses speech recognition to set your focus goal. Audio is processed on-device and never sent anywhere.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>HeyYou uses the microphone to capture your session goals via voice dictation.</string>
 </dict>
