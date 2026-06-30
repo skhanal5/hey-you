@@ -48,17 +48,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       case .tracking(let sig, let start):
         self.trackingSignature = sig
         self.trackingStart = start
-        self.menuBarController.setDetecting(true)
+        // Update context BEFORE setDetecting so syncPopoverState reads fresh values
         self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: start)
-      case .pending(let sig, _):
         self.menuBarController.setDetecting(true)
-        self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: nil)
-      case .triggered(let sig, _):
+      case .pending:
         self.menuBarController.setDetecting(true)
-        // Use original tracking start for elapsed time computation
-        self.menuBarController.updateDetectionContext(
-          site: sig.name, trackingStart: self.trackingStart
-        )
+      case .triggered:
+        self.menuBarController.setDetecting(true)
+        // Context was already set during .tracking — no need to re-update
       }
     }
 
@@ -67,6 +64,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let count = sessionManager.currentSession?.triggerCount ?? 0
       let goals = sessionManager.currentSession?.goals
       let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
+
+      Task { @MainActor in
+        self.menuBarController.showDetectionPopover()
+      }
+
       Task {
         let message: String
         if self.keychain.read() != nil,

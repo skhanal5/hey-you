@@ -178,16 +178,12 @@ final class MenuBarController: NSObject {
         distractions: triggers
       )
     case .detecting, .speaking:
-      let goals = sessionManager.currentSession?.goals ?? ""
-      let site = lastDetectedSite ?? "Unknown"
-      let elapsed = computeElapsedMinutes()
-      popoverViewModel.state = .detection(
-        goal: goals,
-        site: site,
-        elapsedMinutes: elapsed
-      )
+      // Don't auto-transition popover to detection on tracking start.
+      // The popover only flips to detection when the trigger actually
+      // fires, via showDetectionPopover(). This prevents flip-flopping
+      // when the user briefly switches to a doomscroll app and back.
+      return
     }
-    // Update stats for active/detection views
     popoverViewModel.sessionsToday = sessionManager.sessionsToday
     popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
   }
@@ -261,6 +257,24 @@ final class MenuBarController: NSObject {
   func updateDetectionContext(site: String, trackingStart: Date?) {
     lastDetectedSite = site
     lastTrackingStart = trackingStart
+  }
+
+  /// Show the detection state in the popover when a trigger fires
+  func showDetectionPopover() {
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let site = lastDetectedSite ?? "Unknown"
+    let elapsed = computeElapsedMinutes()
+    popoverViewModel.state = .detection(
+      goal: goals,
+      site: site,
+      elapsedMinutes: elapsed
+    )
+    popoverViewModel.sessionsToday = sessionManager.sessionsToday
+    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
+
+    guard let button = statusItem.button, !popover.isShown else { return }
+    popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    popover.contentViewController?.view.window?.makeKey()
   }
 
   // MARK: - Actions (called from popover or programmatically)
