@@ -1,8 +1,10 @@
 import AppKit
+import SwiftUI
 
 final class MenuBarController: NSObject {
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-  private var menu = NSMenu()
+  private var popover: NSPopover!
+  private let popoverViewModel = PopoverViewModel()
 
   private let sessionManager: SessionManager
   private let dictationService: DictationService
@@ -18,6 +20,9 @@ final class MenuBarController: NSObject {
   private var animPhase: CGFloat = 0
   private var animTimer: Timer?
   private var lastFrameTime: Date?
+
+  private var lastDetectedSite: String?
+  private var lastTrackingStart: Date?
 
   init(
     sessionManager: SessionManager,
@@ -37,60 +42,90 @@ final class MenuBarController: NSObject {
     super.init()
 
     setupStatusItem()
-    rebuildMenu()
+    setupPopover()
     updateIcon()
+    observeActivation()
   }
 
   // MARK: - Status Item
 
   private func setupStatusItem() {
-    if let button = statusItem.button {
-      button.image = MenuBarIcon.make(iconState: AppIconState(from: state), animPhase: animPhase)
-      button.imagePosition = .imageLeft
+    guard let button = statusItem.button else { return }
+    button.image = MenuBarIcon.make(iconState: AppIconState(from: state), animPhase: animPhase)
+    button.imagePosition = .imageLeft
+    button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    button.target = self
+    button.action = #selector(handleStatusItemClick)
+  }
+
+  @objc private func handleStatusItemClick(_ sender: NSStatusBarButton) {
+    guard let event = NSApp.currentEvent else { return }
+    if event.type == .rightMouseUp {
+      showContextMenu(sender)
+    } else {
+      togglePopover(sender)
     }
   }
 
-  private func rebuildMenu() {
-    menu = NSMenu()
+  // MARK: - Context Menu (right-click)
 
-    let stateItem = NSMenuItem(title: stateLabel(), action: nil, keyEquivalent: "")
-    stateItem.isEnabled = false
-    menu.addItem(stateItem)
-
-    menu.addItem(.separator())
-
-    switch state {
-    case .listening:
-      let stopItem = NSMenuItem(title: "Stop Recording", action: #selector(stopRecording), keyEquivalent: "")
-      stopItem.target = self
-      menu.addItem(stopItem)
-    case .active, .detecting, .speaking:
-      let goalItem = NSMenuItem(title: "Set Goal", action: #selector(setGoal), keyEquivalent: "g")
-      goalItem.target = self
-      menu.addItem(goalItem)
-
-      let endItem = NSMenuItem(title: "End Session", action: #selector(endSession), keyEquivalent: "e")
-      endItem.target = self
-      menu.addItem(endItem)
-    case .idle:
-      let startItem = NSMenuItem(title: "Start Session", action: #selector(startSession), keyEquivalent: "s")
-      startItem.target = self
-      menu.addItem(startItem)
-    }
-
-    menu.addItem(.separator())
-
-    let prefsItem = NSMenuItem(title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
+  private func showContextMenu(_ sender: NSView) {
+    let menu = NSMenu()
+    let prefsItem = NSMenuItem(
+      title: "Preferences...", action: #selector(showPreferences), keyEquivalent: ",")
     prefsItem.target = self
     menu.addItem(prefsItem)
-
     menu.addItem(.separator())
-
-    let quitItem = NSMenuItem(title: "Quit HeyYou", action: #selector(quit), keyEquivalent: "q")
+    let quitItem = NSMenuItem(
+      title: "Quit HeyYou", action: #selector(quit), keyEquivalent: "q")
     quitItem.target = self
     menu.addItem(quitItem)
+    menu.popUp(positioning: nil, at: .zero, in: sender)
+  }
 
-    statusItem.menu = menu
+  // MARK: - Popover
+
+  private func setupPopover() {
+    popover = NSPopover()
+    popover.contentSize = NSSize(width: 300, height: 0)
+    popover.behavior = .transient
+
+    let contentView = PopoverContentView(
+      viewModel: popoverViewModel,
+      onStartListening: { [weak self] in self?.startListeningFromPopover() },
+      onStopListening: { [weak self] in self?.dictationService.stopListening() },
+      onConfirmGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
+      onDismissIdle: {},
+      onTypeGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
+      onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
+      onEndSession: { [weak self] in self?.endSession() },
+      onDismissDetection: { [weak self] in self?.dismissDetection() },
+      onBackToWork: { [weak self] in self?.dismissDetection() },
+      onSnooze: { [weak self] in self?.snoozeDetection() }
+    )
+
+    popover.contentViewController = NSHostingController(rootView: contentView)
+  }
+
+  private func togglePopover(_ sender: NSView) {
+    if popover.isShown {
+      popover.performClose(sender)
+    } else {
+      popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+      // Force the popover to become key immediately
+      popover.contentViewController?.view.window?.makeKey()
+    }
+  }
+
+  private func observeActivation() {
+    NotificationCenter.default.addObserver(
+      forName: NSApplication.didBecomeActiveNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard let self, self.popover.isShown else { return }
+      self.popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
+    }
   }
 
   // MARK: - Icon
@@ -127,25 +162,92 @@ final class MenuBarController: NSObject {
 
   private func stateDidChange() {
     updateAnimationTimer()
-    rebuildMenu()
+    syncPopoverState()
   }
 
-  // MARK: - State
+  // MARK: - Popover State Sync
 
-  private func stateLabel() -> String {
+  private func syncPopoverState() {
     switch state {
-    case .idle:
-      return "Idle — no active session"
-    case .listening:
-      return "Listening to your goal..."
+    case .idle, .listening:
+      popoverViewModel.state = .idle
     case .active(let goals, let triggers):
-      return "Session active — \(triggers) triggers\nGoal: \(goals)"
-    case .detecting:
-      return "Hey! Focus."
-    case .speaking:
-      return "Speaking..."
+      popoverViewModel.state = .active(
+        goal: goals,
+        startTime: sessionManager.currentSession?.startTime ?? Date(),
+        distractions: triggers
+      )
+    case .detecting, .speaking:
+      let goals = sessionManager.currentSession?.goals ?? ""
+      let site = lastDetectedSite ?? "Unknown"
+      let elapsed = computeElapsedMinutes()
+      popoverViewModel.state = .detection(
+        goal: goals,
+        site: site,
+        elapsedMinutes: elapsed
+      )
+    }
+    // Update stats for active/detection views
+    popoverViewModel.sessionsToday = sessionManager.sessionsToday
+    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
+  }
+
+  private func computeElapsedMinutes() -> Int {
+    guard let start = lastTrackingStart else { return 0 }
+    return Int(Date().timeIntervalSince(start) / 60)
+  }
+
+  // MARK: - Popover Actions
+
+  private func startListeningFromPopover() {
+    popoverViewModel.startListening()
+    Task {
+      do {
+        let goal = try await dictationService.startListening { [weak self] text in
+          Task { @MainActor in
+            self?.popoverViewModel.liveTranscription = text
+          }
+        }
+        await MainActor.run {
+          self.confirmSession(goal: goal)
+        }
+      } catch {
+        await MainActor.run {
+          self.popoverViewModel.handleListeningError(error)
+        }
+      }
     }
   }
+
+  private func confirmSession(goal: String) {
+    guard !goal.isEmpty else {
+      popoverViewModel.idleError = "No goal detected — try again"
+      return
+    }
+    sessionManager.startSession(goals: goal)
+    state = .active(goals: goal, triggers: 0)
+    print("[HeyYou] Session started: \(goal)")
+  }
+
+  private func openMicrophoneSettings() {
+    NSWorkspace.shared.open(
+      URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
+    )
+  }
+
+  private func dismissDetection() {
+    interventionService.stop()
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let triggers = sessionManager.currentSession?.triggerCount ?? 0
+    state = .active(goals: goals, triggers: triggers)
+  }
+
+  private func snoozeDetection() {
+    sessionManager.snoozeUntil = Date().addingTimeInterval(300)
+    dismissDetection()
+  }
+
+  // MARK: - State (called from AppDelegate)
 
   func setDetecting(_ detecting: Bool) {
     state = state.settingDetecting(detecting)
@@ -155,7 +257,13 @@ final class MenuBarController: NSObject {
     state = state.settingSpeaking(speaking)
   }
 
-  // MARK: - Actions
+  /// Store detection context when a trigger fires
+  func updateDetectionContext(site: String, trackingStart: Date?) {
+    lastDetectedSite = site
+    lastTrackingStart = trackingStart
+  }
+
+  // MARK: - Actions (called from popover or programmatically)
 
   @objc private func startSession() {
     guard keychain.read() != nil else {
@@ -205,7 +313,7 @@ final class MenuBarController: NSObject {
     }
   }
 
-  @objc private func endSession() {
+  func endSession() {
     dictationService.cancel()
     sessionManager.endSession()
     triggerEngine.reset()

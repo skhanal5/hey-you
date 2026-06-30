@@ -57,6 +57,10 @@ final class TriggerEngine {
     }
 
     private func fireTrigger(_ sig: DoomscrollSignature) {
+        guard sessionManager.shouldTrigger() else {
+            state = .focused
+            return
+        }
         sessionManager.recordTrigger()
         let cooldown: TimeInterval = sessionManager.currentSession != nil ? 60 : 30
         state = .triggered(signature: sig, cooldownDeadline: Date().addingTimeInterval(cooldown))
