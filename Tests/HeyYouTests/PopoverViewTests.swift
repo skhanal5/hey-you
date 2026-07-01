@@ -64,21 +64,21 @@ func sessionStateNeedsKey() {
   #expect(vm.state == .needsKey)
 }
 
-@Test("NeedsApiKeyView can be created with onOpenPreferences closure")
+@Test("NeedsApiKeyView can be created with onSave closure")
 func needsApiKeyViewCreation() {
-  var called = false
-  let view = NeedsApiKeyView(onOpenPreferences: { called = true })
+  var savedKey: String?
+  let view = NeedsApiKeyView(onSave: { savedKey = $0 })
   _ = view
 }
 
-@Test("NeedsApiKeyView onOpenPreferences fires")
-func needsApiKeyViewFiresCallback() {
-  var called = false
-  let view = NeedsApiKeyView(onOpenPreferences: { called = true })
+@Test("NeedsApiKeyView onSave fires with key")
+func needsApiKeyViewSavesKey() {
+  var savedKey: String?
+  let view = NeedsApiKeyView(onSave: { savedKey = $0 })
   _ = view
-  // NeedsApiKeyView triggers onOpenPreferences via button tap
+  // onSave is triggered by the Save button tap
   // which requires SwiftUI event simulation — verify closure is captured
-  #expect(called == false)
+  #expect(savedKey == nil)
 }
 
 @Test("IdleStateView can be created")

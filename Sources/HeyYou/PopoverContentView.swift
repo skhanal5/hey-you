@@ -11,7 +11,7 @@ struct PopoverContentView: View {
   var onOpenSettings: () -> Void = {}
 
   // Needs key callback
-  var onOpenPreferences: () -> Void = {}
+  var onSaveApiKey: (String) -> Void = { _ in }
 
   // Active callbacks
   var onEndSession: () -> Void = {}
@@ -25,7 +25,7 @@ struct PopoverContentView: View {
     Group {
       switch viewModel.state {
       case .needsKey:
-        NeedsApiKeyView(onOpenPreferences: onOpenPreferences)
+        NeedsApiKeyView(onSave: onSaveApiKey)
 
       case .idle:
         IdleStateView(

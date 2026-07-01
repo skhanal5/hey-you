@@ -120,7 +120,7 @@ final class MenuBarController: NSObject {
       onConfirmGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
       onDismissIdle: { [weak self] in self?.popover.performClose(nil) },
       onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
-      onOpenPreferences: { [weak self] in self?.showPreferences() },
+      onSaveApiKey: { [weak self] key in self?.saveApiKey(key) },
       onEndSession: { [weak self] in self?.endSession() },
       onDismissDetection: { [weak self] in self?.dismissDetection() },
       onBackToWork: { [weak self] in self?.dismissDetection() },
@@ -309,6 +309,14 @@ final class MenuBarController: NSObject {
   func updateDetectionContext(site: String, trackingStart: Date?) {
     lastDetectedSite = site
     lastTrackingStart = trackingStart
+  }
+
+  private func saveApiKey(_ key: String) {
+    guard keychain.save(key: key) else {
+      popoverViewModel.idleError = "Failed to save API key"
+      return
+    }
+    popoverViewModel.state = .idle
   }
 
   func refreshApiKeyState() {
