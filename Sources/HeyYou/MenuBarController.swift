@@ -63,7 +63,9 @@ final class MenuBarController: NSObject {
 
     setupStatusItem()
     setupPopover()
-    popoverViewModel.apiKeyAvailable = keychain.read() != nil
+    if keychain.read() == nil {
+      popoverViewModel.state = .needsKey
+    }
     updateIcon()
     observeActivation()
   }
@@ -263,7 +265,7 @@ final class MenuBarController: NSObject {
       popoverViewModel.idleError = "No goal detected — try again"
       return
     }
-    guard popoverViewModel.apiKeyAvailable else {
+    guard keychain.read() != nil else {
       popoverViewModel.idleError = "Configure an API key in Preferences before starting a session."
       return
     }
@@ -310,7 +312,11 @@ final class MenuBarController: NSObject {
   }
 
   func refreshApiKeyState() {
-    popoverViewModel.apiKeyAvailable = keychain.read() != nil
+    if keychain.read() != nil, case .needsKey = popoverViewModel.state {
+      popoverViewModel.state = .idle
+    } else if keychain.read() == nil, case .idle = popoverViewModel.state {
+      popoverViewModel.state = .needsKey
+    }
   }
 
   /// Show the detection state in the popover when a trigger fires

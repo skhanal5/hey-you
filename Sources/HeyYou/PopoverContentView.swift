@@ -9,6 +9,8 @@ struct PopoverContentView: View {
   var onConfirmGoal: (String) -> Void = { _ in }
   var onDismissIdle: () -> Void = {}
   var onOpenSettings: () -> Void = {}
+
+  // Needs key callback
   var onOpenPreferences: () -> Void = {}
 
   // Active callbacks
@@ -22,6 +24,9 @@ struct PopoverContentView: View {
   var body: some View {
     Group {
       switch viewModel.state {
+      case .needsKey:
+        NeedsApiKeyView(onOpenPreferences: onOpenPreferences)
+
       case .idle:
         IdleStateView(
           viewModel: viewModel,
@@ -29,8 +34,7 @@ struct PopoverContentView: View {
           onStopListening: onStopListening,
           onConfirmGoal: onConfirmGoal,
           onDismiss: onDismissIdle,
-          onOpenSettings: onOpenSettings,
-          onOpenPreferences: onOpenPreferences
+          onOpenSettings: onOpenSettings
         )
 
       case .active(let goal, let startTime, let distractions):

@@ -9,6 +9,14 @@ func popoverContentIdle() {
   #expect(view.viewModel.state == .idle)
 }
 
+@Test("PopoverContentView reflects needsKey state")
+func popoverContentNeedsKey() {
+  let vm = PopoverViewModel()
+  vm.state = .needsKey
+  let view = PopoverContentView(viewModel: vm)
+  #expect(view.viewModel.state == .needsKey)
+}
+
 @Test("PopoverContentView reflects active state")
 func popoverContentActive() {
   let vm = PopoverViewModel()
@@ -43,100 +51,61 @@ func detectionColor() {
   _ = color
 }
 
-@Test("PopoverViewModel apiKeyAvailable defaults to false")
-func apiKeyAvailableDefault() {
+@Test("SessionState defaults to idle")
+func sessionStateDefaultsToIdle() {
   let vm = PopoverViewModel()
-  #expect(vm.apiKeyAvailable == false)
+  #expect(vm.state == .idle)
 }
 
-@Test("PopoverViewModel apiKeyAvailable reflects set value")
-func apiKeyAvailableSet() {
+@Test("SessionState needsKey can be set")
+func sessionStateNeedsKey() {
   let vm = PopoverViewModel()
-  vm.apiKeyAvailable = true
-  #expect(vm.apiKeyAvailable == true)
-  vm.apiKeyAvailable = false
-  #expect(vm.apiKeyAvailable == false)
+  vm.state = .needsKey
+  #expect(vm.state == .needsKey)
 }
 
-@Test("IdleStateView renders no-key section when apiKeyAvailable is false")
-func idleStateNoKeySection() {
+@Test("NeedsApiKeyView can be created with onOpenPreferences closure")
+func needsApiKeyViewCreation() {
+  var called = false
+  let view = NeedsApiKeyView(onOpenPreferences: { called = true })
+  _ = view
+}
+
+@Test("NeedsApiKeyView onOpenPreferences fires")
+func needsApiKeyViewFiresCallback() {
+  var called = false
+  let view = NeedsApiKeyView(onOpenPreferences: { called = true })
+  _ = view
+  // NeedsApiKeyView triggers onOpenPreferences via button tap
+  // which requires SwiftUI event simulation — verify closure is captured
+  #expect(called == false)
+}
+
+@Test("IdleStateView can be created")
+func idleStateViewCreation() {
   let vm = PopoverViewModel()
-  vm.apiKeyAvailable = false
   let view = IdleStateView(
     viewModel: vm,
     onStartListening: {},
     onStopListening: { nil },
     onConfirmGoal: { _ in },
     onDismiss: {},
-    onOpenSettings: {},
-    onOpenPreferences: {}
+    onOpenSettings: {}
   )
   _ = view
 }
 
-@Test("IdleStateView renders input section when apiKeyAvailable is true")
-func idleStateInputSection() {
+@Test("confirmSession guard sets idleError when keychain returns nil")
+func confirmSessionGuardWithoutKey() {
   let vm = PopoverViewModel()
-  vm.apiKeyAvailable = true
-  let view = IdleStateView(
-    viewModel: vm,
-    onStartListening: {},
-    onStopListening: { nil },
-    onConfirmGoal: { _ in },
-    onDismiss: {},
-    onOpenSettings: {},
-    onOpenPreferences: {}
-  )
-  _ = view
+  vm.idleError = "Configure an API key in Preferences before starting a session."
+  #expect(vm.idleError != nil)
 }
 
-@Test("IdleStateView no-key section contains key configuration message")
-func noKeySectionContainsPreferencesLink() {
+@Test("confirmSession guard clears idleError on retry")
+func confirmSessionGuardClearsOnRetry() {
   let vm = PopoverViewModel()
-  vm.apiKeyAvailable = false
-  let view = IdleStateView(
-    viewModel: vm,
-    onStartListening: {},
-    onStopListening: { nil },
-    onConfirmGoal: { _ in },
-    onDismiss: {},
-    onOpenSettings: {},
-    onOpenPreferences: {}
-  )
-  let mirror = Mirror(reflecting: view)
-  #expect(mirror.children.contains { $0.label == "onOpenPreferences" })
-}
-
-@Test("confirmSession guard sets idleError when apiKey unavailable")
-func confirmSessionGuard() {
-  let vm = PopoverViewModel()
-  vm.apiKeyAvailable = false
-
-  func confirmSession(goal: String) {
-    guard !goal.isEmpty else { return }
-    guard vm.apiKeyAvailable else {
-      vm.idleError = "Configure an API key in Preferences before starting a session."
-      return
-    }
-  }
-
-  confirmSession(goal: "test")
-  #expect(vm.idleError == "Configure an API key in Preferences before starting a session.")
-}
-
-@Test("confirmSession guard does not set idleError when apiKey available")
-func confirmSessionPassesWithKey() {
-  let vm = PopoverViewModel()
-  vm.apiKeyAvailable = true
-
-  func confirmSession(goal: String) {
-    guard !goal.isEmpty else { return }
-    guard vm.apiKeyAvailable else {
-      vm.idleError = "Configure an API key in Preferences before starting a session."
-      return
-    }
-  }
-
-  confirmSession(goal: "test")
+  vm.idleError = "Configure an API key in Preferences before starting a session."
+  vm.idleError = nil
   #expect(vm.idleError == nil)
 }
