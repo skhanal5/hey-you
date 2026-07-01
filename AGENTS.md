@@ -51,6 +51,9 @@ When implementing a feature based on a plan or discussion:
 
 3. **Commit hygiene** — Each commit must be a single focused unit of change, independently valid (builds + passes tests). No partial or WIP commits. A PR should contain multiple such commits rather than one large squashed commit.
 
+4. **Learn from corrections** — When the user points out a mistake in reasoning or execution, add a note to AGENTS.md describing the mistake and how to avoid it. This is especially important for recurring patterns. Examples:
+   - **Stale planning files in commits**: Internal implementation plans, scratch notes, and dev docs do not belong in the repo. They can live on disk but must not be tracked (`git rm --cached <file>` + add to `.gitignore`). Only commit code, tests, and documentation that serves end users or contributors.
+
 ## Menu bar app conventions
 
 - Activation policy is `.accessory` (no Dock icon, no app switcher entry). Set via `LSUIElement` in Info.plist **and** `app.setActivationPolicy(.accessory)` in `main.swift` before `app.run()`.
@@ -82,4 +85,4 @@ Every feature, fix, or change must go through a PR.
 3. Push the branch and open a PR: `gh pr create`
 4. As the PR scope evolves, update the title and description via `gh pr edit`
 5. Do not push directly to `main`. Do not commit and ask later. Always branch first.
-6. Update AGENTS.md with any new conventions discovered during the PR.
+6. Update AGENTS.md with any new conventions discovered during the PR. Keep it accurate and complete alongside feature changes — don't batch updates only at PR end.
