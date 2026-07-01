@@ -1,6 +1,25 @@
 import AppKit
 import SwiftUI
 
+struct DetectionCycle {
+  var firstDetectedAt: Date?
+  var fireCount: Int = 0
+
+  mutating func ensureFirstDetectedAt() {
+    guard firstDetectedAt == nil else { return }
+    firstDetectedAt = Date()
+  }
+
+  mutating func incrementFireCount() {
+    fireCount += 1
+  }
+
+  mutating func reset() {
+    firstDetectedAt = nil
+    fireCount = 0
+  }
+}
+
 final class MenuBarController: NSObject {
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private var popover: NSPopover!
@@ -23,6 +42,7 @@ final class MenuBarController: NSObject {
 
   private var lastDetectedSite: String?
   private var lastTrackingStart: Date?
+  private var detectionCycle = DetectionCycle()
 
   init(
     sessionManager: SessionManager,
@@ -95,8 +115,7 @@ final class MenuBarController: NSObject {
       onStartListening: { [weak self] in self?.startListeningFromPopover() },
       onStopListening: { [weak self] in self?.dictationService.stopListening() },
       onConfirmGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
-      onDismissIdle: {},
-      onTypeGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
+      onDismissIdle: { [weak self] in self?.popover.performClose(nil) },
       onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
       onEndSession: { [weak self] in self?.endSession() },
       onDismissDetection: { [weak self] in self?.dismissDetection() },
@@ -162,39 +181,60 @@ final class MenuBarController: NSObject {
 
   private func stateDidChange() {
     updateAnimationTimer()
-    syncPopoverState()
-  }
-
-  // MARK: - Popover State Sync
-
-  private func syncPopoverState() {
-    switch state {
-    case .idle, .listening:
-      popoverViewModel.state = .idle
-    case .active(let goals, let triggers):
-      popoverViewModel.state = .active(
-        goal: goals,
-        startTime: sessionManager.currentSession?.startTime ?? Date(),
-        distractions: triggers
-      )
-    case .detecting, .speaking:
-      let goals = sessionManager.currentSession?.goals ?? ""
-      let site = lastDetectedSite ?? "Unknown"
-      let elapsed = computeElapsedMinutes()
-      popoverViewModel.state = .detection(
-        goal: goals,
-        site: site,
-        elapsedMinutes: elapsed
-      )
-    }
-    // Update stats for active/detection views
-    popoverViewModel.sessionsToday = sessionManager.sessionsToday
-    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
   }
 
   private func computeElapsedMinutes() -> Int {
     guard let start = lastTrackingStart else { return 0 }
     return Int(Date().timeIntervalSince(start) / 60)
+  }
+
+  // MARK: - Popover State (explicit, not synced from MenuBarState)
+
+  private func setPopoverActive() {
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let triggers = sessionManager.currentSession?.triggerCount ?? 0
+    popoverViewModel.state = .active(
+      goal: goals,
+      startTime: sessionManager.currentSession?.startTime ?? Date(),
+      distractions: triggers
+    )
+    popoverViewModel.sessionsToday = sessionManager.sessionsToday
+    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
+  }
+
+  private func setPopoverIdle() {
+    popoverViewModel.state = .idle
+  }
+
+  func ensureFirstDetectedAt() {
+    detectionCycle.ensureFirstDetectedAt()
+  }
+
+  func incrementFireCount() {
+    detectionCycle.incrementFireCount()
+  }
+
+  func resetDetectionCycle() {
+    detectionCycle.reset()
+  }
+
+  private func setPopoverDetection() {
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let site = lastDetectedSite ?? "Unknown"
+    let elapsed: Int
+    if let first = detectionCycle.firstDetectedAt {
+      elapsed = Int(Date().timeIntervalSince(first) / 60)
+    } else {
+      elapsed = 0
+    }
+    popoverViewModel.state = .detection(
+      goal: goals,
+      site: site,
+      fireCount: detectionCycle.fireCount,
+      elapsedMinutes: elapsed
+    )
+    popoverViewModel.sessionsToday = sessionManager.sessionsToday
+    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
   }
 
   // MARK: - Popover Actions
@@ -203,13 +243,10 @@ final class MenuBarController: NSObject {
     popoverViewModel.startListening()
     Task {
       do {
-        let goal = try await dictationService.startListening { [weak self] text in
+        _ = try await dictationService.startListening { [weak self] text in
           Task { @MainActor in
             self?.popoverViewModel.liveTranscription = text
           }
-        }
-        await MainActor.run {
-          self.confirmSession(goal: goal)
         }
       } catch {
         await MainActor.run {
@@ -226,6 +263,7 @@ final class MenuBarController: NSObject {
     }
     sessionManager.startSession(goals: goal)
     state = .active(goals: goal, triggers: 0)
+    setPopoverActive()
     print("[HeyYou] Session started: \(goal)")
   }
 
@@ -240,6 +278,8 @@ final class MenuBarController: NSObject {
     let goals = sessionManager.currentSession?.goals ?? ""
     let triggers = sessionManager.currentSession?.triggerCount ?? 0
     state = .active(goals: goals, triggers: triggers)
+    setPopoverActive()
+    popover.performClose(nil)
   }
 
   private func snoozeDetection() {
@@ -261,6 +301,16 @@ final class MenuBarController: NSObject {
   func updateDetectionContext(site: String, trackingStart: Date?) {
     lastDetectedSite = site
     lastTrackingStart = trackingStart
+  }
+
+  /// Show the detection state in the popover when a trigger fires
+  func showDetectionPopover() {
+    setPopoverDetection()
+
+    guard let button = statusItem.button else { return }
+    popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    popover.contentViewController?.view.window?.orderFrontRegardless()
+    popover.contentViewController?.view.window?.makeKey()
   }
 
   // MARK: - Actions (called from popover or programmatically)
@@ -318,6 +368,7 @@ final class MenuBarController: NSObject {
     sessionManager.endSession()
     triggerEngine.reset()
     state = .idle
+    setPopoverIdle()
     print("[HeyYou] Session ended")
   }
 

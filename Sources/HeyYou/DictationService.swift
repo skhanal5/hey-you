@@ -35,8 +35,6 @@ final class DictationService {
   // Streaming state
   private var isStreaming = false
   private var streamingContinuation: CheckedContinuation<String, Swift.Error>?
-  private var lastPartialDate: Date?
-  private var silenceWorkItem: DispatchWorkItem?
   private var partialResultCallback: ((String) -> Void)?
 
   init(locale: Locale = .current) {
@@ -127,7 +125,6 @@ final class DictationService {
     guard let recognizer, recognizer.isAvailable else { throw Error.recognitionUnavailable }
 
     bestTranscription = ""
-    lastPartialDate = Date()
     partialResultCallback = onPartialResult
     isStreaming = true
 
@@ -150,7 +147,7 @@ final class DictationService {
           if recognitionTask?.state == .canceling || recognitionTask?.state == .finishing {
             return
           }
-          continuation.resume(throwing: Error.recognitionFailed(error))
+          streamingContinuation?.resume(throwing: Error.recognitionFailed(error))
           streamingContinuation = nil
           isStreaming = false
           cleanup()
@@ -160,16 +157,13 @@ final class DictationService {
         if let result {
           let text = result.bestTranscription.formattedString
           bestTranscription = text
-          lastPartialDate = Date()
           partialResultCallback?(text)
 
           if result.isFinal {
-            continuation.resume(returning: text)
+            streamingContinuation?.resume(returning: text)
             streamingContinuation = nil
             isStreaming = false
             cleanup()
-          } else {
-            scheduleSilenceCheck()
           }
         }
       }
@@ -183,7 +177,7 @@ final class DictationService {
         engine.prepare()
         try engine.start()
       } catch {
-        continuation.resume(throwing: Error.recognitionFailed(error))
+        streamingContinuation?.resume(throwing: Error.recognitionFailed(error))
         streamingContinuation = nil
         isStreaming = false
         cleanup()
@@ -195,8 +189,6 @@ final class DictationService {
     guard isStreaming, let engine = audioEngine else { return nil }
 
     isStreaming = false
-    silenceWorkItem?.cancel()
-    silenceWorkItem = nil
 
     engine.stop()
     engine.inputNode.removeTap(onBus: 0)
@@ -210,38 +202,23 @@ final class DictationService {
   func cancel() {
     if isStreaming {
       isStreaming = false
-      silenceWorkItem?.cancel()
-      silenceWorkItem = nil
     }
     recognitionTask?.cancel()
-    cleanup()
-    transcriptionContinuation?.resume(throwing: Error.notRecording)
+    let tc = transcriptionContinuation
     transcriptionContinuation = nil
-    streamingContinuation?.resume(throwing: Error.cancelled)
+    tc?.resume(throwing: Error.notRecording)
+    let sc = streamingContinuation
     streamingContinuation = nil
+    sc?.resume(throwing: Error.cancelled)
+    cleanup()
   }
 
   // MARK: - Private
-
-  private func scheduleSilenceCheck() {
-    silenceWorkItem?.cancel()
-    let item = DispatchWorkItem { [weak self] in
-      guard let self else { return }
-      let elapsed = Date().timeIntervalSince(self.lastPartialDate ?? .distantPast)
-      if elapsed >= 1.5 && !self.bestTranscription.isEmpty {
-        _ = self.stopListening()
-      }
-    }
-    silenceWorkItem = item
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: item)
-  }
 
   private func cleanup() {
     audioEngine = nil
     recognitionRequest = nil
     recognitionTask = nil
-    silenceWorkItem?.cancel()
-    silenceWorkItem = nil
     partialResultCallback = nil
   }
 }

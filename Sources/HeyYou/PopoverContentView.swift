@@ -8,7 +8,6 @@ struct PopoverContentView: View {
   var onStopListening: () -> String? = { nil }
   var onConfirmGoal: (String) -> Void = { _ in }
   var onDismissIdle: () -> Void = {}
-  var onTypeGoal: (String) -> Void = { _ in }
   var onOpenSettings: () -> Void = {}
 
   // Active callbacks
@@ -29,7 +28,6 @@ struct PopoverContentView: View {
           onStopListening: onStopListening,
           onConfirmGoal: onConfirmGoal,
           onDismiss: onDismissIdle,
-          onTypeGoal: onTypeGoal,
           onOpenSettings: onOpenSettings
         )
 
@@ -43,10 +41,11 @@ struct PopoverContentView: View {
           onEndSession: onEndSession
         )
 
-      case .detection(let goal, let site, let elapsedMinutes):
+      case .detection(let goal, let site, let fireCount, let elapsedMinutes):
         DetectionStateView(
           goal: goal,
           site: site,
+          fireCount: fireCount,
           elapsedMinutes: elapsedMinutes,
           onDismiss: onDismissDetection,
           onBackToWork: onBackToWork,

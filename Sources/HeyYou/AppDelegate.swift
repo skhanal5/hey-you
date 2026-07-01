@@ -45,20 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       case .focused:
         self.interventionService.stop()
         self.menuBarController.setDetecting(false)
+        self.menuBarController.resetDetectionCycle()
       case .tracking(let sig, let start):
         self.trackingSignature = sig
         self.trackingStart = start
-        self.menuBarController.setDetecting(true)
         self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: start)
-      case .pending(let sig, _):
+        self.menuBarController.ensureFirstDetectedAt()
+      case .triggered:
         self.menuBarController.setDetecting(true)
-        self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: nil)
-      case .triggered(let sig, _):
-        self.menuBarController.setDetecting(true)
-        // Use original tracking start for elapsed time computation
-        self.menuBarController.updateDetectionContext(
-          site: sig.name, trackingStart: self.trackingStart
-        )
+        self.menuBarController.incrementFireCount()
       }
     }
 
@@ -67,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let count = sessionManager.currentSession?.triggerCount ?? 0
       let goals = sessionManager.currentSession?.goals
       let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
+
+      self.menuBarController.showDetectionPopover()
+
       Task {
         let message: String
         if self.keychain.read() != nil,

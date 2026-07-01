@@ -3,6 +3,7 @@ import SwiftUI
 struct DetectionStateView: View {
   let goal: String
   let site: String
+  let fireCount: Int
   let elapsedMinutes: Int
   let onDismiss: () -> Void
   let onBackToWork: () -> Void
@@ -38,16 +39,20 @@ struct DetectionStateView: View {
         .buttonStyle(.plain)
       }
 
-      // Hero + subtext
+      // Hero text
       VStack(alignment: .leading, spacing: 4) {
-        Text("You've been gone for \(elapsedMinutes) minute\(elapsedMinutes == 1 ? "" : "s").")
-          .font(.system(size: 19, weight: .semibold))
-          .kerning(-0.19)
-          .foregroundColor(.white)
-
-        Text("\(site) · still open.")
-          .font(.system(size: 13, weight: .regular).italic())
-          .foregroundColor(.white.opacity(0.38))
+        if fireCount == 1 {
+          Text("Hey — you're on \(site).")
+            .font(.system(size: 19, weight: .semibold))
+            .kerning(-0.19)
+            .foregroundColor(.white)
+        } else {
+          let m = max(elapsedMinutes, 1)
+          Text("Still on \(site) — \(m) minute\(m == 1 ? "" : "s") now.")
+            .font(.system(size: 19, weight: .semibold))
+            .kerning(-0.19)
+            .foregroundColor(.white)
+        }
       }
 
       // Goal chip (red-tinted)

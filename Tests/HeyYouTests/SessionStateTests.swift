@@ -40,15 +40,15 @@ func activeDifferentDistractions() {
 
 @Test("Detection with same values are equal")
 func detectionEquality() {
-  let a = SessionState.detection(goal: "focus", site: "reddit.com", elapsedMinutes: 4)
-  let b = SessionState.detection(goal: "focus", site: "reddit.com", elapsedMinutes: 4)
+  let a = SessionState.detection(goal: "focus", site: "reddit.com", fireCount: 1, elapsedMinutes: 4)
+  let b = SessionState.detection(goal: "focus", site: "reddit.com", fireCount: 1, elapsedMinutes: 4)
   #expect(a == b)
 }
 
 @Test("Different states are not equal")
 func differentStatesNotEqual() {
   #expect(SessionState.idle != SessionState.active(goal: "x", startTime: Date(), distractions: 0))
-  #expect(SessionState.idle != SessionState.detection(goal: "x", site: "x", elapsedMinutes: 0))
+  #expect(SessionState.idle != SessionState.detection(goal: "x", site: "x", fireCount: 1, elapsedMinutes: 0))
 }
 
 // MARK: - PopoverViewModel
