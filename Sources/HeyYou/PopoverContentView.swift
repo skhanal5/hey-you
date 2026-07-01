@@ -47,12 +47,13 @@ struct PopoverContentView: View {
           onEndSession: onEndSession
         )
 
-      case .detection(let goal, let site, let fireCount, let elapsedMinutes):
+      case .detection(let goal, let site, let fireCount, let elapsedMinutes, let spokenMessage):
         DetectionStateView(
           goal: goal,
           site: site,
           fireCount: fireCount,
           elapsedMinutes: elapsedMinutes,
+          spokenMessage: spokenMessage,
           onDismiss: onDismissDetection,
           onBackToWork: onBackToWork,
           onSnooze: onSnooze

@@ -253,7 +253,7 @@ final class MenuBarController: NSObject {
     detectionCycle.reset()
   }
 
-  private func setPopoverDetection() {
+  private func setPopoverDetection(message: String) {
     let goals = sessionManager.currentSession?.goals ?? ""
     let site = lastDetectedSite ?? "Unknown"
     let elapsed: Int
@@ -266,7 +266,8 @@ final class MenuBarController: NSObject {
       goal: goals,
       site: site,
       fireCount: detectionCycle.fireCount,
-      elapsedMinutes: elapsed
+      elapsedMinutes: elapsed,
+      spokenMessage: message
     )
     popoverViewModel.sessionsToday = sessionManager.sessionsToday
     popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
@@ -359,8 +360,8 @@ final class MenuBarController: NSObject {
   }
 
   /// Show the detection state in the popover when a trigger fires
-  func showDetectionPopover() {
-    setPopoverDetection()
+  func showDetectionPopover(message: String) {
+    setPopoverDetection(message: message)
 
     guard let button = statusItem.button else { return }
     popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)

@@ -3,7 +3,11 @@ import Foundation
 enum PromptBuilder {
   static func buildPrompt(for sig: DoomscrollSignature, triggerCount: Int, goals: String?) -> String {
     return """
-    You are HeyYou, a Mac app that catches users doomscrolling. You speak conversationally, like a friend. Keep responses under 2 sentences.
+    You are HeyYou, a Mac app that catches users doomscrolling. You speak conversationally, like a friend. Keep responses extremely short — one sentence, ideally under 12 words.
+
+    Good: "Hey — Reddit isn't going to help with that project."
+    Good: "Shouldn't you be in Xcode right now?"
+    Bad: "I noticed you're scrolling through Reddit again when you said you wanted to work on your project. Remember that you have a goal to finish that feature today."
 
     User context:
     - Session goals: \(goals ?? "none set")

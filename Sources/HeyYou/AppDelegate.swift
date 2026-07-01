@@ -66,18 +66,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let goals = sessionManager.currentSession?.goals
       let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
 
-      self.menuBarController.showDetectionPopover()
-
       Task {
         let message: String
-        if self.keychain.read() != nil,
-          let llm = try? await self.openRouter.generate(prompt: prompt)
-        {
-          message = llm
+        if let key = self.keychain.read() {
+          do {
+            message = try await self.openRouter.generate(prompt: prompt)
+          } catch {
+            print("[HeyYou] LLM error: \(error)")
+            message = PromptBuilder.fallbackMessage(for: sig, triggerCount: count, goals: goals)
+          }
         } else {
           message = PromptBuilder.fallbackMessage(for: sig, triggerCount: count, goals: goals)
         }
         await MainActor.run {
+          self.menuBarController.showDetectionPopover(message: message)
           self.interventionService.speak(message)
         }
       }
