@@ -108,30 +108,12 @@ final class MenuBarController: NSObject {
 
   // MARK: - Popover
 
-  /// Hosting controller that forwards cmd shortcuts (select all, copy, paste, cut)
-  /// to the first responder. Required because NSPopover panels in .accessory apps
-  /// don't process these key equivalents by default.
-  private final class PopoverHostingController: NSHostingController<PopoverContentView> {
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-      if event.modifierFlags.contains(.command),
-         let chars = event.charactersIgnoringModifiers,
-         let editor = view.window?.firstResponder as? NSTextView {
-        switch chars {
-        case "a": editor.selectAll(nil); return true
-        case "c": editor.copy(nil); return true
-        case "v": editor.paste(nil); return true
-        case "x": editor.cut(nil); return true
-        default: break
-        }
-      }
-      return super.performKeyEquivalent(with: event)
-    }
-  }
+  private var keyMonitor: Any?
 
   private func setupPopover() {
     popover = NSPopover()
     popover.contentSize = NSSize(width: 300, height: 0)
-    popover.behavior = .semitransient
+    popover.behavior = .transient
 
     let contentView = PopoverContentView(
       viewModel: popoverViewModel,
@@ -147,16 +129,45 @@ final class MenuBarController: NSObject {
       onSnooze: { [weak self] in self?.snoozeDetection() }
     )
 
-    popover.contentViewController = PopoverHostingController(rootView: contentView)
+    popover.contentViewController = NSHostingController(rootView: contentView)
   }
 
   private func togglePopover(_ sender: NSView) {
     if popover.isShown {
+      removeKeyMonitor()
       popover.performClose(sender)
     } else {
       popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-      // Force the popover to become key immediately
       popover.contentViewController?.view.window?.makeKey()
+      installKeyMonitor()
+    }
+  }
+
+  private func installKeyMonitor() {
+    removeKeyMonitor()
+    keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+      guard let self,
+            self.popover.isShown,
+            let window = self.popover.contentViewController?.view.window,
+            window.isKeyWindow,
+            event.modifierFlags.contains(.command),
+            let chars = event.charactersIgnoringModifiers else {
+        return event
+      }
+      switch chars {
+      case "a": NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil); return nil
+      case "c": NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil); return nil
+      case "v": NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil); return nil
+      case "x": NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil); return nil
+      default: return event
+      }
+    }
+  }
+
+  private func removeKeyMonitor() {
+    if let monitor = keyMonitor {
+      NSEvent.removeMonitor(monitor)
+      keyMonitor = nil
     }
   }
 
