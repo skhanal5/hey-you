@@ -18,6 +18,7 @@ Do not bypass SwiftPM. If SwiftPM is broken, flag the issue to the user and wait
 - Keep functions small
 - Prefer clarity over brevity
 - 2-space indentation
+- Write idiomatic Swift with appropriate abstraction. One source of truth, no unnecessary conditionals.
 
 ## Architecture
 
@@ -53,8 +54,6 @@ When implementing a feature based on a plan or discussion:
 
 4. **Learn from corrections** — When the user points out a mistake in reasoning or execution, add a note to AGENTS.md describing the mistake and how to avoid it. This is especially important for recurring patterns. Examples:
    - **Stale planning files in commits**: Internal implementation plans, scratch notes, and dev docs do not belong in the repo. They can live on disk but must not be tracked (`git rm --cached <file>` + add to `.gitignore`). Only commit code, tests, and documentation that serves end users or contributors.
-
-5. **Enum-based state in SwiftUI** — Use a single enum to drive screen/content rendering in SwiftUI views. A pure `switch` on the enum is cleaner and more maintainable than gating with separate boolean flags (`if apiKeyAvailable { ... } else { ... }` alongside a state enum). One source of truth, no conditionals. If a new screen needs to be represented, add a case to the enum rather than introducing a separate flag.
 
 ## Menu bar app conventions
 
