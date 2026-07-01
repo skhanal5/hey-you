@@ -42,32 +42,16 @@ func repeatedDoomscrollKeepsTracking() {
   }
 }
 
-@Test("Tracking transitions to pending after threshold")
-func trackingToPending() {
-  let scheduler = TestScheduler()
-  let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.03, repeatThreshold: 0.03)
-  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.5, scheduler: scheduler)
-  engine.classificationDidChange(.doomscroll(matchedBy: sig))
-
-  scheduler.advance(by: 0.03)
-
-  if case .pending = engine.state {
-    // expected
-  } else {
-    Issue.record("Expected pending state, got \(engine.state)")
-  }
-}
-
-@Test("Pending transitions to triggered after cancel window")
-func pendingToTriggered() {
+@Test("Tracking transitions to triggered after threshold expires")
+func trackingToTriggered() {
   let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  sm.startSession(goals: "test")
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   if case .triggered(let s, _) = engine.state {
     #expect(s == sig)
@@ -82,11 +66,10 @@ func triggerIncrementsCount() {
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
   sm.startSession(goals: "test")
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   #expect(sm.currentSession?.triggerCount == 1)
 }
@@ -96,11 +79,10 @@ func triggeredSuppressesDuringCooldown() {
   let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   guard case .triggered = engine.state else {
     Issue.record("Expected triggered state")
@@ -115,7 +97,7 @@ func triggeredSuppressesDuringCooldown() {
 @Test("Productive classification during tracking resets to focused")
 func productiveResetsTracking() {
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 30, repeatThreshold: 15)
-  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 2.5)
+  let engine = TriggerEngine(sessionManager: SessionManager())
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   if case .tracking = engine.state {
@@ -132,37 +114,41 @@ func productiveResetsTracking() {
 func triggerFiresCallback() {
   let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
-  let engine = TriggerEngine(sessionManager: SessionManager(), pendingDelay: 0.02, scheduler: scheduler)
+  let sm = SessionManager()
+  sm.startSession(goals: "test")
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   var triggeredSig: DoomscrollSignature?
   engine.onTrigger = { triggeredSig = $0 }
 
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   #expect(triggeredSig == sig)
 }
 
-@Test("Cooldown allows productive reset")
-func cooldownAllowsProductiveReset() {
+@Test("Productive during cooldown does not reset triggered state")
+func productiveDuringCooldown() {
   let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
   sm.startSession(goals: "test")
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   guard case .triggered = engine.state else {
     Issue.record("Expected triggered state")
     return
   }
 
+  // Productive classification should be ignored during cooldown
   engine.classificationDidChange(.productive)
-  #expect(engine.state == .focused)
+  guard case .triggered = engine.state else {
+    Issue.record("Expected engine to stay triggered during cooldown")
+    return
+  }
 }
 
 @Test("Snooze suppresses trigger and resets to focused")
@@ -172,14 +158,13 @@ func snoozeSuppressesTrigger() {
   let sm = SessionManager()
   sm.startSession(goals: "test")
   sm.snoozeUntil = Date().addingTimeInterval(300)
-  let engine = TriggerEngine(sessionManager: sm, pendingDelay: 0.02, scheduler: scheduler)
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   var triggerFired = false
   engine.onTrigger = { _ in triggerFired = true }
 
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
   scheduler.advance(by: 0.01)
-  scheduler.advance(by: 0.02)
 
   #expect(!triggerFired)
   #expect(engine.state == .focused)

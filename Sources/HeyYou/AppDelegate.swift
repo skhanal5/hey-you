@@ -45,17 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       case .focused:
         self.interventionService.stop()
         self.menuBarController.setDetecting(false)
+        self.menuBarController.resetDetectionCycle()
       case .tracking(let sig, let start):
         self.trackingSignature = sig
         self.trackingStart = start
-        // Update context BEFORE setDetecting so syncPopoverState reads fresh values
         self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: start)
-        self.menuBarController.setDetecting(true)
-      case .pending:
-        self.menuBarController.setDetecting(true)
+        self.menuBarController.ensureFirstDetectedAt()
       case .triggered:
         self.menuBarController.setDetecting(true)
-        // Context was already set during .tracking — no need to re-update
+        self.menuBarController.incrementFireCount()
       }
     }
 
@@ -65,9 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let goals = sessionManager.currentSession?.goals
       let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
 
-      Task { @MainActor in
-        self.menuBarController.showDetectionPopover()
-      }
+      self.menuBarController.showDetectionPopover()
 
       Task {
         let message: String

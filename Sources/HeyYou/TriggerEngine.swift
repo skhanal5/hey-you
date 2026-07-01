@@ -3,7 +3,6 @@ import Foundation
 enum EngineState: Equatable {
     case focused
     case tracking(signature: DoomscrollSignature, startTime: Date)
-    case pending(signature: DoomscrollSignature, cancelDeadline: Date)
     case triggered(signature: DoomscrollSignature, cooldownDeadline: Date)
 }
 
@@ -13,17 +12,14 @@ final class TriggerEngine {
     }
 
     private let sessionManager: SessionManager
-    private let pendingDelay: TimeInterval
     private let scheduler: Scheduler
     private var trackingCancellable: Cancellable?
-    private var pendingCancellable: Cancellable?
 
     var onStateChange: ((EngineState) -> Void)?
     var onTrigger: ((DoomscrollSignature) -> Void)?
 
-    init(sessionManager: SessionManager, pendingDelay: TimeInterval = 2.5, scheduler: Scheduler = TimerScheduler()) {
+    init(sessionManager: SessionManager, scheduler: Scheduler = TimerScheduler()) {
         self.sessionManager = sessionManager
-        self.pendingDelay = pendingDelay
         self.scheduler = scheduler
     }
 
@@ -32,6 +28,7 @@ final class TriggerEngine {
 
         switch classification {
         case .productive:
+            if case .triggered(_, let deadline) = state, Date() < deadline { return }
             state = .focused
         case .doomscroll(let sig):
             if case .triggered(_, let deadline) = state, Date() < deadline {
@@ -45,13 +42,6 @@ final class TriggerEngine {
         state = .tracking(signature: sig, startTime: Date())
         let delay = threshold(for: sig)
         trackingCancellable = scheduler.schedule(after: delay) { [weak self] in
-            self?.beginPending(sig)
-        }
-    }
-
-    private func beginPending(_ sig: DoomscrollSignature) {
-        state = .pending(signature: sig, cancelDeadline: Date().addingTimeInterval(pendingDelay))
-        pendingCancellable = scheduler.schedule(after: pendingDelay) { [weak self] in
             self?.fireTrigger(sig)
         }
     }
@@ -77,8 +67,6 @@ final class TriggerEngine {
     private func cancelTimers() {
         trackingCancellable?.cancel()
         trackingCancellable = nil
-        pendingCancellable?.cancel()
-        pendingCancellable = nil
     }
 
     func reset() {

@@ -20,7 +20,7 @@ func popoverContentActive() {
 @Test("PopoverContentView reflects detection state")
 func popoverContentDetection() {
   let vm = PopoverViewModel()
-  vm.state = .detection(goal: "focus", site: "reddit.com", elapsedMinutes: 4)
+  vm.state = .detection(goal: "focus", site: "reddit.com", fireCount: 1, elapsedMinutes: 4)
   let view = PopoverContentView(viewModel: vm)
   #expect(view.viewModel.state != .idle)
 }

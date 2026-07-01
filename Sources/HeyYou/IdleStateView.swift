@@ -6,27 +6,44 @@ struct IdleStateView: View {
   let onStopListening: () -> String?
   let onConfirmGoal: (String) -> Void
   let onDismiss: () -> Void
-  let onTypeGoal: (String) -> Void
   let onOpenSettings: () -> Void
 
-  @State private var typedGoal = ""
+  @State private var goalText = ""
+  @State private var recordingError: String?
+
+  private var isRecording: Bool { viewModel.isListening }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
-      // Sonar + status header
-      HStack(spacing: 8) {
-        if viewModel.isListening {
-          AnimatedSonarPingView(stateColor: StateColor.idleTranslucent())
-        } else {
-          SonarPingView(stateColor: StateColor.idleTranslucent())
+      headerSection
+
+      if let error = viewModel.idleError {
+        errorContent(error)
+      } else {
+        inputSection
+        if let error = recordingError {
+          errorText(error)
         }
+      }
+
+      bottomBar
+        .padding(.top, 12)
+    }
+    .padding(20)
+  }
+
+  // MARK: - Header
+
+  private var headerSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(spacing: 8) {
+        SonarPingView(stateColor: StateColor.idleTranslucent())
         Text("IDLE · NOT WATCHING")
           .font(.system(size: 11, weight: .regular))
           .kerning(1)
           .foregroundColor(.white.opacity(0.25))
       }
 
-      // Hero
       Text("What are you here to do?")
         .font(.system(size: 19, weight: .semibold))
         .kerning(-0.19)
@@ -35,87 +52,59 @@ struct IdleStateView: View {
       Text("Give me something to hold you to.")
         .font(.system(size: 13, weight: .regular).italic())
         .foregroundColor(.white.opacity(0.38))
-
-      // Voice input or text field
-      if viewModel.showTextField {
-        textFieldSection
-      } else if viewModel.isListening {
-        listeningSection
-      } else if let error = viewModel.idleError {
-        errorSection(error)
-      } else {
-        micButtonSection
-      }
-
-      // Action buttons
-      if !viewModel.liveTranscription.isEmpty && !viewModel.isListening {
-        actionButtons
-      }
-      if !typedGoal.isEmpty && viewModel.showTextField {
-        actionButtonsTyped
-      }
     }
-    .padding(20)
   }
 
-  // MARK: - Mic button (default state)
+  // MARK: - Input
 
-  private var micButtonSection: some View {
-    VStack(spacing: 12) {
-      Button(action: { viewModel.startListening(); onStartListening() }) {
-        Circle()
-          .fill(.white.opacity(0.06))
-          .overlay(
-            Circle()
-              .stroke(.white.opacity(0.08), lineWidth: 1)
-          )
-          .overlay(
-            Image(systemName: "mic.fill")
-              .font(.system(size: 16))
-              .foregroundColor(.white.opacity(0.7))
-          )
-          .frame(width: 44, height: 44)
-      }
-      .buttonStyle(.plain)
-
-      Button("type instead") {
-        withAnimation { viewModel.showTextField = true }
-      }
-      .font(.system(size: 12))
-      .foregroundColor(.white.opacity(0.25))
-    }
-    .frame(maxWidth: .infinity)
-  }
-
-  // MARK: - Listening state
-
-  private var listeningSection: some View {
-    VStack(spacing: 12) {
-      Text(viewModel.liveTranscription.isEmpty ? "Listening..." : viewModel.liveTranscription)
+  private var inputSection: some View {
+    HStack(spacing: 8) {
+      TextField("Finish the project proposal…", text: $goalText)
+        .textFieldStyle(.plain)
         .font(.system(size: 13))
-        .foregroundColor(viewModel.liveTranscription.isEmpty ? .white.opacity(0.3) : .white.opacity(0.7))
-        .frame(maxWidth: .infinity, alignment: .center)
-        .lineLimit(3)
-        .multilineTextAlignment(.center)
-
-      if !viewModel.liveTranscription.isEmpty {
-        Button(action: { viewModel.confirmTranscription(); _ = onStopListening() }) {
-          Text("Tap to confirm")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(.white.opacity(0.8))
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
-            .background(.white.opacity(0.08))
-            .cornerRadius(12)
+        .foregroundColor(.white)
+        .padding(12)
+        .background(.white.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+          RoundedRectangle(cornerRadius: 12)
+            .stroke(.white.opacity(0.08), lineWidth: 1)
+        )
+        .disabled(isRecording)
+        .onReceive(viewModel.$liveTranscription) { text in
+          guard isRecording else { return }
+          goalText = text
         }
-        .buttonStyle(.plain)
-      }
+        .onChange(of: goalText) { _ in
+          recordingError = nil
+          viewModel.idleError = nil
+        }
+
+      micButton
     }
   }
 
-  // MARK: - Error state
+  private var micButton: some View {
+    Button(action: toggleRecording) {
+      Circle()
+        .fill(isRecording ? Color.red.opacity(0.15) : .white.opacity(0.06))
+        .overlay(
+          Circle()
+            .stroke(isRecording ? Color.red.opacity(0.3) : .white.opacity(0.08), lineWidth: 1)
+        )
+        .overlay(
+          Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+            .font(.system(size: 16))
+            .foregroundColor(isRecording ? .red : .white.opacity(0.7))
+        )
+        .frame(width: 44, height: 44)
+    }
+    .buttonStyle(.plain)
+  }
 
-  private func errorSection(_ message: String) -> some View {
+  // MARK: - Error
+
+  private func errorContent(_ message: String) -> some View {
     VStack(spacing: 12) {
       Text(message)
         .font(.system(size: 12))
@@ -139,81 +128,112 @@ struct IdleStateView: View {
     .frame(maxWidth: .infinity)
   }
 
-  // MARK: - Text field (typed fallback)
-
-  private var textFieldSection: some View {
-    VStack(spacing: 12) {
-      TextField("Finish the project proposal…", text: $typedGoal)
-        .textFieldStyle(.plain)
-        .font(.system(size: 13))
-        .foregroundColor(.white)
-        .padding(12)
-        .background(.white.opacity(0.05))
-        .cornerRadius(12)
-        .overlay(
-          RoundedRectangle(cornerRadius: 12)
-            .stroke(.white.opacity(0.08), lineWidth: 1)
-        )
-    }
-  }
-
-  // MARK: - Action buttons
-
-  private var actionButtons: some View {
-    VStack(spacing: 8) {
-      Button("Start session") {
-        onConfirmGoal(viewModel.liveTranscription)
-      }
-      .font(.system(size: 13, weight: .semibold))
-      .foregroundColor(Color(red: 0.067, green: 0.067, blue: 0.067))
-      .padding(.horizontal, 24)
-      .padding(.vertical, 10)
-      .background(.white)
-      .clipShape(Capsule())
-
-      Button("Not yet") {
-        withAnimation { viewModel.isListening = false }
-      }
+  private func errorText(_ message: String) -> some View {
+    Text(message)
       .font(.system(size: 12))
-      .foregroundColor(.white.opacity(0.45))
-      .padding(.horizontal, 20)
-      .padding(.vertical, 8)
-      .background(.white.opacity(0.06))
-      .cornerRadius(12)
-      .overlay(
-        RoundedRectangle(cornerRadius: 12)
-          .stroke(.white.opacity(0.08), lineWidth: 1)
-      )
-    }
-    .frame(maxWidth: .infinity)
+      .foregroundColor(StateColor.activeGreen().opacity(0.7))
+      .transition(.opacity)
   }
 
-  private var actionButtonsTyped: some View {
-    VStack(spacing: 8) {
-      Button("Start session") {
-        onTypeGoal(typedGoal)
-      }
-      .font(.system(size: 13, weight: .semibold))
-      .foregroundColor(Color(red: 0.067, green: 0.067, blue: 0.067))
-      .padding(.horizontal, 24)
-      .padding(.vertical, 10)
-      .background(.white)
-      .clipShape(Capsule())
+  // MARK: - Bottom Bar
 
-      Button("Not yet") {
+  private var bottomBar: some View {
+    HStack(spacing: 8) {
+      Button("Not now") {
+        goalText = ""
+        viewModel.liveTranscription = ""
+        viewModel.isListening = false
+        viewModel.idleError = nil
         onDismiss()
       }
-      .font(.system(size: 12))
-      .foregroundColor(.white.opacity(0.45))
-      .padding(.horizontal, 20)
-      .padding(.vertical, 8)
-      .background(.white.opacity(0.06))
-      .cornerRadius(12)
-      .overlay(
-        RoundedRectangle(cornerRadius: 12)
-          .stroke(.white.opacity(0.08), lineWidth: 1)
-      )
+      .buttonStyle(GhostButtonStyle())
+
+      Button("Confirm") {
+        onConfirmGoal(goalText)
+      }
+      .buttonStyle(PrimaryButtonStyle(isEnabled: !goalText.isEmpty))
+      .disabled(goalText.isEmpty)
     }
-    .frame(maxWidth: .infinity)
+  }
+
+  // MARK: - Actions
+
+  private func toggleRecording() {
+    if isRecording {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  private func startRecording() {
+    recordingError = nil
+    viewModel.liveTranscription = ""
+    viewModel.idleError = nil
+    goalText = ""
+    onStartListening()
+  }
+
+  private func stopRecording() {
+    let result = onStopListening()
+    viewModel.isListening = false
+    if let text = result, !text.isEmpty {
+      goalText = text
+    } else if !viewModel.liveTranscription.isEmpty {
+      goalText = viewModel.liveTranscription
+    } else {
+      recordingError = "No speech detected — try again"
+    }
+  }
+}
+
+// MARK: - Button Styles
+
+fileprivate struct PrimaryButtonStyle: ButtonStyle {
+  let isEnabled: Bool
+  @State private var isHovering = false
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(.system(size: 13, weight: .semibold))
+      .foregroundColor(isEnabled ? .white.opacity(0.95) : .white.opacity(0.4))
+      .frame(maxWidth: .infinity)
+      .frame(height: 36)
+      .background(
+        Capsule()
+          .fill(
+            isEnabled
+              ? (isHovering ? StateColor.activeGreen().opacity(0.85) : StateColor.activeGreen())
+              : StateColor.activeGreen().opacity(0.25)
+          )
+      )
+      .animation(.easeInOut(duration: 0.2), value: isEnabled)
+      .animation(.easeInOut(duration: 0.15), value: isHovering)
+      .onHover { hovering in
+        guard isEnabled else { return }
+        isHovering = hovering
+      }
+  }
+}
+
+fileprivate struct GhostButtonStyle: ButtonStyle {
+  @State private var isHovering = false
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(.system(size: 13, weight: .medium))
+      .foregroundColor(isHovering ? Color.white.opacity(0.6) : Color.white.opacity(0.45))
+      .frame(maxWidth: .infinity)
+      .frame(height: 36)
+      .background(
+        Capsule()
+          .fill(isHovering ? Color.white.opacity(0.10) : Color.white.opacity(0.06))
+          .overlay(
+            Capsule()
+              .stroke(Color.white.opacity(0.08), lineWidth: 1)
+          )
+      )
+      .animation(.easeInOut(duration: 0.15), value: isHovering)
+      .onHover { hovering in isHovering = hovering }
   }
 }

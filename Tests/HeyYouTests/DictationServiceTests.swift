@@ -62,3 +62,17 @@ func cancelWithoutRecording() {
   let service = DictationService()
   service.cancel()
 }
+
+@Test("Double cancel is safe and idempotent")
+func doubleCancel() {
+  let service = DictationService()
+  service.cancel()
+  service.cancel()
+}
+
+@Test("Cancel after stopListening is safe")
+func cancelAfterStop() {
+  let service = DictationService()
+  _ = service.stopListening()
+  service.cancel()
+}
