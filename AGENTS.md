@@ -41,6 +41,16 @@ Each layer is testable independently.
 - Minimal UI, maximum impact.
 - The app talks to you. It does not show dialog boxes.
 
+## Agent behavior
+
+When implementing a feature based on a plan or discussion:
+
+1. **Scope guard** — If you discover doubts, concerns, or work beyond what was discussed, stop and ask. Summarize what you observed. Do not edit files outside the agreed scope or implement anything without explicit permission.
+
+2. **Tests required** — Every change that touches behavior must include a test that would catch a regression. Skip only for mechanical changes (rename, comment, config, docs).
+
+3. **Commit hygiene** — Each commit must be a single focused unit of change, independently valid (builds + passes tests). No partial or WIP commits. A PR should contain multiple such commits rather than one large squashed commit.
+
 ## Menu bar app conventions
 
 - Activation policy is `.accessory` (no Dock icon, no app switcher entry). Set via `LSUIElement` in Info.plist **and** `app.setActivationPolicy(.accessory)` in `main.swift` before `app.run()`.
