@@ -108,6 +108,26 @@ final class MenuBarController: NSObject {
 
   // MARK: - Popover
 
+  /// Hosting controller that forwards cmd shortcuts (select all, copy, paste, cut)
+  /// to the first responder. Required because NSPopover panels in .accessory apps
+  /// don't process these key equivalents by default.
+  private final class PopoverHostingController: NSHostingController<PopoverContentView> {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+      if event.modifierFlags.contains(.command),
+         let chars = event.charactersIgnoringModifiers,
+         let editor = view.window?.firstResponder as? NSTextView {
+        switch chars {
+        case "a": editor.selectAll(nil); return true
+        case "c": editor.copy(nil); return true
+        case "v": editor.paste(nil); return true
+        case "x": editor.cut(nil); return true
+        default: break
+        }
+      }
+      return super.performKeyEquivalent(with: event)
+    }
+  }
+
   private func setupPopover() {
     popover = NSPopover()
     popover.contentSize = NSSize(width: 300, height: 0)
@@ -127,7 +147,7 @@ final class MenuBarController: NSObject {
       onSnooze: { [weak self] in self?.snoozeDetection() }
     )
 
-    popover.contentViewController = NSHostingController(rootView: contentView)
+    popover.contentViewController = PopoverHostingController(rootView: contentView)
   }
 
   private func togglePopover(_ sender: NSView) {
