@@ -26,7 +26,7 @@ HeyYou is a macOS AppKit app. Its architecture is layered:
 1. **Detection** — Accessibility API reads frontmost window title
 2. **Classification** — Matches against configurable doomscroll signatures
 3. **Session** — Voice dictation for goals, manual end
-4. **Trigger** — Time + frequency weighted, focused → tracking → pending → triggered
+4. **Trigger** — Time + frequency weighted, focused → tracking → triggered
 5. **Intervention** — AVSpeechSynthesizer with LLM-generated messages
 6. **UI** — Menu bar icon (sonar ring, 4 states), contextual menu
 7. **LLM** — OpenRouter free API for conversational messages
@@ -53,7 +53,7 @@ Each layer is testable independently.
 ## Testing
 
 - Use Swift Testing framework (not XCTest, not Quick/Nimble).
-- Each source file in `Sources/` has a corresponding test file in `Tests/HeyYouTests/`.
+- Tests live in `Tests/HeyYouTests/`, named after the type or behavior they cover. Not every source file needs a dedicated test file, but every behavior change must include a regression test.
 - **Every code change includes a test that would catch a regression.** If the change touches behavior, add or update a test.
 - One behavior per test function. Tests are small and focused.
 - `@Test("Description of behavior")` — descriptive sentences, not function names masquerading as descriptions.
@@ -68,7 +68,8 @@ Each layer is testable independently.
 Every feature, fix, or change must go through a PR.
 
 1. Create a feature branch from `main`: `git checkout -b pr/<number>-<description>`
-2. Commit changes to the feature branch
+2. Commit changes to the feature branch (see commit hygiene below)
 3. Push the branch and open a PR: `gh pr create`
-4. Do not push directly to `main`. Do not commit and ask later. Always branch first.
-5. Update AGENTS.md with any new conventions discovered during the PR.
+4. As the PR scope evolves, update the title and description via `gh pr edit`
+5. Do not push directly to `main`. Do not commit and ask later. Always branch first.
+6. Update AGENTS.md with any new conventions discovered during the PR.
