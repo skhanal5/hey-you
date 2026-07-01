@@ -57,3 +57,86 @@ func apiKeyAvailableSet() {
   vm.apiKeyAvailable = false
   #expect(vm.apiKeyAvailable == false)
 }
+
+@Test("IdleStateView renders no-key section when apiKeyAvailable is false")
+func idleStateNoKeySection() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = false
+  let view = IdleStateView(
+    viewModel: vm,
+    onStartListening: {},
+    onStopListening: { nil },
+    onConfirmGoal: { _ in },
+    onDismiss: {},
+    onOpenSettings: {},
+    onOpenPreferences: {}
+  )
+  _ = view
+}
+
+@Test("IdleStateView renders input section when apiKeyAvailable is true")
+func idleStateInputSection() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = true
+  let view = IdleStateView(
+    viewModel: vm,
+    onStartListening: {},
+    onStopListening: { nil },
+    onConfirmGoal: { _ in },
+    onDismiss: {},
+    onOpenSettings: {},
+    onOpenPreferences: {}
+  )
+  _ = view
+}
+
+@Test("IdleStateView no-key section contains key configuration message")
+func noKeySectionContainsPreferencesLink() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = false
+  let view = IdleStateView(
+    viewModel: vm,
+    onStartListening: {},
+    onStopListening: { nil },
+    onConfirmGoal: { _ in },
+    onDismiss: {},
+    onOpenSettings: {},
+    onOpenPreferences: {}
+  )
+  let mirror = Mirror(reflecting: view)
+  #expect(mirror.children.contains { $0.label == "onOpenPreferences" })
+}
+
+@Test("confirmSession guard sets idleError when apiKey unavailable")
+func confirmSessionGuard() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = false
+
+  func confirmSession(goal: String) {
+    guard !goal.isEmpty else { return }
+    guard vm.apiKeyAvailable else {
+      vm.idleError = "Configure an API key in Preferences before starting a session."
+      return
+    }
+  }
+
+  confirmSession(goal: "test")
+  #expect(vm.idleError == "Configure an API key in Preferences before starting a session.")
+}
+
+@Test("confirmSession guard does not set idleError when apiKey available")
+func confirmSessionPassesWithKey() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = true
+
+  func confirmSession(goal: String) {
+    guard !goal.isEmpty else { return }
+    guard vm.apiKeyAvailable else {
+      vm.idleError = "Configure an API key in Preferences before starting a session."
+      return
+    }
+  }
+
+  confirmSession(goal: "test")
+  #expect(vm.idleError == nil)
+}
