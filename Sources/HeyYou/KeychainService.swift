@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 protocol KeychainServiceProtocol: AnyObject {
-  func read() -> String?
+  @discardableResult func read() -> String?
   @discardableResult func save(key: String) -> Bool
   func delete()
 }

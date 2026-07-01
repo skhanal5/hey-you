@@ -189,7 +189,7 @@ struct IdleStateView: View {
 
 // MARK: - Button Styles
 
-fileprivate struct PrimaryButtonStyle: ButtonStyle {
+struct PrimaryButtonStyle: ButtonStyle {
   let isEnabled: Bool
   @State private var isHovering = false
 
@@ -216,7 +216,7 @@ fileprivate struct PrimaryButtonStyle: ButtonStyle {
   }
 }
 
-fileprivate struct GhostButtonStyle: ButtonStyle {
+struct GhostButtonStyle: ButtonStyle {
   @State private var isHovering = false
 
   func makeBody(configuration: Configuration) -> some View {

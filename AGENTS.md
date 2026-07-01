@@ -18,6 +18,7 @@ Do not bypass SwiftPM. If SwiftPM is broken, flag the issue to the user and wait
 - Keep functions small
 - Prefer clarity over brevity
 - 2-space indentation
+- Write idiomatic Swift with appropriate abstraction. One source of truth, no unnecessary conditionals.
 
 ## Architecture
 

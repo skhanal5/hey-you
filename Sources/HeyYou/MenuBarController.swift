@@ -63,6 +63,9 @@ final class MenuBarController: NSObject {
 
     setupStatusItem()
     setupPopover()
+    if keychain.read() == nil {
+      popoverViewModel.state = .needsKey
+    }
     updateIcon()
     observeActivation()
   }
@@ -105,6 +108,8 @@ final class MenuBarController: NSObject {
 
   // MARK: - Popover
 
+  private var keyMonitor: Any?
+
   private func setupPopover() {
     popover = NSPopover()
     popover.contentSize = NSSize(width: 300, height: 0)
@@ -117,6 +122,7 @@ final class MenuBarController: NSObject {
       onConfirmGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
       onDismissIdle: { [weak self] in self?.popover.performClose(nil) },
       onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
+      onSaveApiKey: { [weak self] key in self?.saveApiKey(key) },
       onEndSession: { [weak self] in self?.endSession() },
       onDismissDetection: { [weak self] in self?.dismissDetection() },
       onBackToWork: { [weak self] in self?.dismissDetection() },
@@ -128,11 +134,40 @@ final class MenuBarController: NSObject {
 
   private func togglePopover(_ sender: NSView) {
     if popover.isShown {
+      removeKeyMonitor()
       popover.performClose(sender)
     } else {
       popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-      // Force the popover to become key immediately
       popover.contentViewController?.view.window?.makeKey()
+      installKeyMonitor()
+    }
+  }
+
+  private func installKeyMonitor() {
+    removeKeyMonitor()
+    keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+      guard let self,
+            self.popover.isShown,
+            let window = self.popover.contentViewController?.view.window,
+            window.isKeyWindow,
+            event.modifierFlags.contains(.command),
+            let chars = event.charactersIgnoringModifiers else {
+        return event
+      }
+      switch chars {
+      case "a": NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil); return nil
+      case "c": NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil); return nil
+      case "v": NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil); return nil
+      case "x": NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil); return nil
+      default: return event
+      }
+    }
+  }
+
+  private func removeKeyMonitor() {
+    if let monitor = keyMonitor {
+      NSEvent.removeMonitor(monitor)
+      keyMonitor = nil
     }
   }
 
@@ -218,7 +253,7 @@ final class MenuBarController: NSObject {
     detectionCycle.reset()
   }
 
-  private func setPopoverDetection() {
+  private func setPopoverDetection(message: String) {
     let goals = sessionManager.currentSession?.goals ?? ""
     let site = lastDetectedSite ?? "Unknown"
     let elapsed: Int
@@ -231,7 +266,8 @@ final class MenuBarController: NSObject {
       goal: goals,
       site: site,
       fireCount: detectionCycle.fireCount,
-      elapsedMinutes: elapsed
+      elapsedMinutes: elapsed,
+      spokenMessage: message
     )
     popoverViewModel.sessionsToday = sessionManager.sessionsToday
     popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
@@ -259,6 +295,10 @@ final class MenuBarController: NSObject {
   private func confirmSession(goal: String) {
     guard !goal.isEmpty else {
       popoverViewModel.idleError = "No goal detected — try again"
+      return
+    }
+    guard keychain.read() != nil else {
+      popoverViewModel.idleError = "Configure an API key in Preferences before starting a session."
       return
     }
     sessionManager.startSession(goals: goal)
@@ -303,9 +343,25 @@ final class MenuBarController: NSObject {
     lastTrackingStart = trackingStart
   }
 
+  private func saveApiKey(_ key: String) {
+    guard keychain.save(key: key) else {
+      popoverViewModel.idleError = "Failed to save API key"
+      return
+    }
+    popoverViewModel.state = .idle
+  }
+
+  func refreshApiKeyState() {
+    if keychain.read() != nil, case .needsKey = popoverViewModel.state {
+      popoverViewModel.state = .idle
+    } else if keychain.read() == nil, case .idle = popoverViewModel.state {
+      popoverViewModel.state = .needsKey
+    }
+  }
+
   /// Show the detection state in the popover when a trigger fires
-  func showDetectionPopover() {
-    setPopoverDetection()
+  func showDetectionPopover(message: String) {
+    setPopoverDetection(message: message)
 
     guard let button = statusItem.button else { return }
     popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -378,7 +434,10 @@ final class MenuBarController: NSObject {
 
   @objc private func showPreferences() {
     if preferencesController == nil {
-      preferencesController = PreferencesWindowController(keychain: keychain)
+      preferencesController = PreferencesWindowController(
+        keychain: keychain,
+        onKeyChanged: { [weak self] in self?.refreshApiKeyState() }
+      )
     }
     preferencesController?.show()
   }

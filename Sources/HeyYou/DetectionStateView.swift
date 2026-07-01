@@ -5,6 +5,7 @@ struct DetectionStateView: View {
   let site: String
   let fireCount: Int
   let elapsedMinutes: Int
+  let spokenMessage: String
   let onDismiss: () -> Void
   let onBackToWork: () -> Void
   let onSnooze: () -> Void
@@ -39,21 +40,12 @@ struct DetectionStateView: View {
         .buttonStyle(.plain)
       }
 
-      // Hero text
-      VStack(alignment: .leading, spacing: 4) {
-        if fireCount == 1 {
-          Text("Hey — you're on \(site).")
-            .font(.system(size: 19, weight: .semibold))
-            .kerning(-0.19)
-            .foregroundColor(.white)
-        } else {
-          let m = max(elapsedMinutes, 1)
-          Text("Still on \(site) — \(m) minute\(m == 1 ? "" : "s") now.")
-            .font(.system(size: 19, weight: .semibold))
-            .kerning(-0.19)
-            .foregroundColor(.white)
-        }
-      }
+      // Spoken message (LLM-generated or fallback)
+      Text(spokenMessage)
+        .font(.system(size: 19, weight: .semibold))
+        .kerning(-0.19)
+        .foregroundColor(.white)
+        .fixedSize(horizontal: false, vertical: true)
 
       // Goal chip (red-tinted)
       HStack(spacing: 6) {
