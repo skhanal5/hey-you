@@ -32,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self.triggerEngine.classificationDidChange(classification)
     }
     monitor.start()
+
+    // Eager keychain read at startup to avoid system prompt during trigger
+    keychain.read()
   }
 
   func applicationWillTerminate(_ notification: Notification) {

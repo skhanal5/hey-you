@@ -7,6 +7,7 @@ struct IdleStateView: View {
   let onConfirmGoal: (String) -> Void
   let onDismiss: () -> Void
   let onOpenSettings: () -> Void
+  let onOpenPreferences: () -> Void
 
   @State private var goalText = ""
   @State private var recordingError: String?
@@ -17,7 +18,9 @@ struct IdleStateView: View {
     VStack(alignment: .leading, spacing: 20) {
       headerSection
 
-      if let error = viewModel.idleError {
+      if !viewModel.apiKeyAvailable {
+        noKeySection
+      } else if let error = viewModel.idleError {
         errorContent(error)
       } else {
         inputSection
@@ -26,10 +29,38 @@ struct IdleStateView: View {
         }
       }
 
-      bottomBar
+      if !viewModel.apiKeyAvailable {
+        Button("Close") {
+          onDismiss()
+        }
+        .buttonStyle(GhostButtonStyle())
         .padding(.top, 12)
+      } else {
+        bottomBar
+          .padding(.top, 12)
+      }
     }
     .padding(20)
+  }
+
+  private var noKeySection: some View {
+    VStack(spacing: 16) {
+      Text("No API key configured")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundColor(.white)
+
+      Text("Set up an OpenRouter API key in Preferences\nto start tracking your focus.")
+        .font(.system(size: 12))
+        .foregroundColor(.white.opacity(0.5))
+        .multilineTextAlignment(.center)
+        .lineSpacing(4)
+
+      Button("Open Preferences") {
+        onOpenPreferences()
+      }
+      .buttonStyle(PrimaryButtonStyle(isEnabled: true))
+    }
+    .frame(maxWidth: .infinity)
   }
 
   // MARK: - Header

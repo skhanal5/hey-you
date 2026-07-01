@@ -9,6 +9,7 @@ struct PopoverContentView: View {
   var onConfirmGoal: (String) -> Void = { _ in }
   var onDismissIdle: () -> Void = {}
   var onOpenSettings: () -> Void = {}
+  var onOpenPreferences: () -> Void = {}
 
   // Active callbacks
   var onEndSession: () -> Void = {}
@@ -28,7 +29,8 @@ struct PopoverContentView: View {
           onStopListening: onStopListening,
           onConfirmGoal: onConfirmGoal,
           onDismiss: onDismissIdle,
-          onOpenSettings: onOpenSettings
+          onOpenSettings: onOpenSettings,
+          onOpenPreferences: onOpenPreferences
         )
 
       case .active(let goal, let startTime, let distractions):

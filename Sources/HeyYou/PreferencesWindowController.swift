@@ -30,7 +30,7 @@ final class PreferencesPanel: NSWindow {
 
 final class PreferencesWindowController: NSWindowController {
 
-  init(keychain: KeychainServiceProtocol) {
+  init(keychain: KeychainServiceProtocol, onKeyChanged: (() -> Void)? = nil) {
     let panel = PreferencesPanel(
       contentRect: NSRect(x: 0, y: 0, width: 400, height: 280),
       styleMask: [.titled, .closable],
@@ -50,7 +50,8 @@ final class PreferencesWindowController: NSWindowController {
         onDidReadKey: { [weak panel] in
           panel?.orderFrontRegardless()
           panel?.makeKey()
-        }
+        },
+        onKeyChanged: onKeyChanged
       )
     )
     panel.center()

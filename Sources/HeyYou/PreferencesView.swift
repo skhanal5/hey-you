@@ -12,6 +12,7 @@ struct PreferencesView: View {
   let onRemove: () -> Void
   let onClose: () -> Void
   let onDidReadKey: (() -> Void)?
+  let onKeyChanged: (() -> Void)?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -36,6 +37,7 @@ struct PreferencesView: View {
           onRemove()
           apiKey = ""
           errorMessage = nil
+          onKeyChanged?()
         }
         .disabled(apiKey.isEmpty)
 
@@ -49,6 +51,7 @@ struct PreferencesView: View {
           }
           if onSave(key) {
             errorMessage = nil
+            onKeyChanged?()
             onClose()
           } else {
             errorMessage = "Failed to save API key to Keychain"

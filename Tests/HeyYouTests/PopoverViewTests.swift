@@ -42,3 +42,18 @@ func detectionColor() {
   let color = StateColor.detectionRed()
   _ = color
 }
+
+@Test("PopoverViewModel apiKeyAvailable defaults to false")
+func apiKeyAvailableDefault() {
+  let vm = PopoverViewModel()
+  #expect(vm.apiKeyAvailable == false)
+}
+
+@Test("PopoverViewModel apiKeyAvailable reflects set value")
+func apiKeyAvailableSet() {
+  let vm = PopoverViewModel()
+  vm.apiKeyAvailable = true
+  #expect(vm.apiKeyAvailable == true)
+  vm.apiKeyAvailable = false
+  #expect(vm.apiKeyAvailable == false)
+}

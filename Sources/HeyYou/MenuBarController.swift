@@ -63,6 +63,7 @@ final class MenuBarController: NSObject {
 
     setupStatusItem()
     setupPopover()
+    popoverViewModel.apiKeyAvailable = keychain.read() != nil
     updateIcon()
     observeActivation()
   }
@@ -117,6 +118,7 @@ final class MenuBarController: NSObject {
       onConfirmGoal: { [weak self] goal in self?.confirmSession(goal: goal) },
       onDismissIdle: { [weak self] in self?.popover.performClose(nil) },
       onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
+      onOpenPreferences: { [weak self] in self?.showPreferences() },
       onEndSession: { [weak self] in self?.endSession() },
       onDismissDetection: { [weak self] in self?.dismissDetection() },
       onBackToWork: { [weak self] in self?.dismissDetection() },
@@ -261,6 +263,10 @@ final class MenuBarController: NSObject {
       popoverViewModel.idleError = "No goal detected — try again"
       return
     }
+    guard popoverViewModel.apiKeyAvailable else {
+      popoverViewModel.idleError = "Configure an API key in Preferences before starting a session."
+      return
+    }
     sessionManager.startSession(goals: goal)
     state = .active(goals: goal, triggers: 0)
     setPopoverActive()
@@ -301,6 +307,10 @@ final class MenuBarController: NSObject {
   func updateDetectionContext(site: String, trackingStart: Date?) {
     lastDetectedSite = site
     lastTrackingStart = trackingStart
+  }
+
+  func refreshApiKeyState() {
+    popoverViewModel.apiKeyAvailable = keychain.read() != nil
   }
 
   /// Show the detection state in the popover when a trigger fires
@@ -378,7 +388,10 @@ final class MenuBarController: NSObject {
 
   @objc private func showPreferences() {
     if preferencesController == nil {
-      preferencesController = PreferencesWindowController(keychain: keychain)
+      preferencesController = PreferencesWindowController(
+        keychain: keychain,
+        onKeyChanged: { [weak self] in self?.refreshApiKeyState() }
+      )
     }
     preferencesController?.show()
   }

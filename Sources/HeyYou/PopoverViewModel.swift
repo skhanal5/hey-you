@@ -7,6 +7,7 @@ final class PopoverViewModel: ObservableObject {
   @Published var isListening: Bool = false
   @Published var idleError: String?
   @Published var showTextField: Bool = false
+  @Published var apiKeyAvailable: Bool = false
 
   // Session stats (set by MenuBarController)
   @Published var sessionsToday: Int = 0
