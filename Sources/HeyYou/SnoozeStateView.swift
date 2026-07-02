@@ -22,29 +22,7 @@ struct SnoozeStateView: View {
         .foregroundColor(.white)
 
       if !goal.isEmpty {
-        HStack(spacing: 6) {
-          Circle()
-            .fill(Color.white.opacity(0.3))
-            .frame(width: 5, height: 5)
-          (Text("Goal: ")
-            .font(.system(size: 12))
-            .foregroundColor(.white.opacity(0.4))
-            + Text(goal)
-            .font(.system(size: 12))
-            .foregroundColor(.white.opacity(0.6))
-          )
-          .lineLimit(1...3)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.06))
-        .cornerRadius(8)
-        .overlay(
-          RoundedRectangle(cornerRadius: 8)
-            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
+        GoalChipView(goal: goal, tint: .white.opacity(0.3))
       }
 
       VStack(spacing: 8) {
