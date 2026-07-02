@@ -128,24 +128,17 @@ final class MenuBarController: NSObject {
 
     popoverViewModel.onSnoozeEnd = { [weak self] in
       guard let self else { return }
-      self.sessionManager.clearSnooze()
-      let goal = self.sessionManager.currentSession?.goals ?? ""
-      let startTime = self.sessionManager.currentSession?.startTime ?? Date()
-      let triggers = self.sessionManager.currentSession?.triggerCount ?? 0
-      self.popoverViewModel.state = .active(goal: goal, startTime: startTime, distractions: triggers)
+      sessionManager.clearSnooze()
+      transitionToActive()
     }
 
     popover.contentViewController = NSHostingController(rootView: contentView)
   }
 
   private func togglePopover(_ sender: NSView) {
-    // Reconcile stale snooze state (snooze expired while popover was closed)
     if case .snoozed(let until, _) = popoverViewModel.state, Date() >= until {
       sessionManager.clearSnooze()
-      let goal = sessionManager.currentSession?.goals ?? ""
-      let startTime = sessionManager.currentSession?.startTime ?? Date()
-      let triggers = sessionManager.currentSession?.triggerCount ?? 0
-      popoverViewModel.state = .active(goal: goal, startTime: startTime, distractions: triggers)
+      transitionToActive()
     }
 
     if popover.isShown {
@@ -255,6 +248,14 @@ final class MenuBarController: NSObject {
     popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
   }
 
+  private func transitionToActive() {
+    let goal = sessionManager.currentSession?.goals ?? ""
+    let startTime = sessionManager.currentSession?.startTime ?? Date()
+    let triggers = sessionManager.currentSession?.triggerCount ?? 0
+    popoverViewModel.state = .active(goal: goal, startTime: startTime, distractions: triggers)
+    syncSessionStats()
+  }
+
   private func computeElapsedMinutes() -> Int {
     guard let start = lastTrackingStart else { return 0 }
     return Int(Date().timeIntervalSince(start) / 60)
@@ -326,18 +327,13 @@ final class MenuBarController: NSObject {
   private func dismissDetection() {
     interventionService.stop()
     triggerEngine.acknowledgeTrigger()
-    let goals = sessionManager.currentSession?.goals ?? ""
-    let triggers = sessionManager.currentSession?.triggerCount ?? 0
-    popoverViewModel.state = .active(
-      goal: goals,
-      startTime: sessionManager.currentSession?.startTime ?? Date(),
-      distractions: triggers
-    )
-    syncSessionStats()
+    transitionToActive()
     popover.performClose(nil)
   }
 
   private func snoozeDetection() {
+    interventionService.stop()
+    triggerEngine.acknowledgeTrigger()
     let until = Date().addingTimeInterval(300)
     sessionManager.snoozeUntil = until
     let goal = sessionManager.currentSession?.goals ?? ""
