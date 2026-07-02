@@ -373,56 +373,6 @@ final class MenuBarController: NSObject {
     popover.contentViewController?.view.window?.makeKey()
   }
 
-  // MARK: - Actions (called from popover or programmatically)
-
-  @objc private func startSession() {
-    guard keychain.read() != nil else {
-      showPreferences()
-      return
-    }
-    state = .listening
-    Task {
-      do {
-        try await dictationService.startRecording()
-      } catch {
-        await MainActor.run {
-          self.state = .idle
-        }
-      }
-    }
-  }
-
-  @objc private func stopRecording() {
-    Task {
-      let goals: String
-      do {
-        goals = try await dictationService.stopRecording()
-      } catch {
-        goals = "Unspecified"
-      }
-      await MainActor.run {
-        self.sessionManager.startSession(goals: goals)
-        self.state = .active(goals: goals, triggers: 0)
-        print("[HeyYou] Session started: \(goals)")
-      }
-    }
-  }
-
-  @objc private func setGoal() {
-    state = .listening
-    Task {
-      do {
-        try await dictationService.startRecording()
-      } catch {
-        await MainActor.run {
-          let goals = self.sessionManager.currentSession?.goals ?? ""
-          let triggers = self.sessionManager.currentSession?.triggerCount ?? 0
-          self.state = .active(goals: goals, triggers: triggers)
-        }
-      }
-    }
-  }
-
   func endSession() {
     dictationService.cancel()
     sessionManager.endSession()
