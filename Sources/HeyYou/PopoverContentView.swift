@@ -60,6 +60,13 @@ struct PopoverContentView: View {
           onBackToWork: onBackToWork,
           onSnooze: onSnooze
         )
+
+      case .snoozed(_, let goal):
+        SnoozeStateView(
+          goal: goal,
+          remainingFormatted: viewModel.snoozeRemaining,
+          onResume: { viewModel.cancelSnooze() }
+        )
       }
     }
     .cardShell()

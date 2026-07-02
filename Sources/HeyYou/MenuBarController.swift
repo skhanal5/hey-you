@@ -126,10 +126,28 @@ final class MenuBarController: NSObject {
       onSnooze: { [weak self] in self?.snoozeDetection() }
     )
 
+    popoverViewModel.onSnoozeEnd = { [weak self] in
+      guard let self else { return }
+      self.sessionManager.clearSnooze()
+      let goal = self.sessionManager.currentSession?.goals ?? ""
+      let startTime = self.sessionManager.currentSession?.startTime ?? Date()
+      let triggers = self.sessionManager.currentSession?.triggerCount ?? 0
+      self.popoverViewModel.state = .active(goal: goal, startTime: startTime, distractions: triggers)
+    }
+
     popover.contentViewController = NSHostingController(rootView: contentView)
   }
 
   private func togglePopover(_ sender: NSView) {
+    // Reconcile stale snooze state (snooze expired while popover was closed)
+    if case .snoozed(let until, _) = popoverViewModel.state, Date() >= until {
+      sessionManager.clearSnooze()
+      let goal = sessionManager.currentSession?.goals ?? ""
+      let startTime = sessionManager.currentSession?.startTime ?? Date()
+      let triggers = sessionManager.currentSession?.triggerCount ?? 0
+      popoverViewModel.state = .active(goal: goal, startTime: startTime, distractions: triggers)
+    }
+
     if popover.isShown {
       removeKeyMonitor()
       popover.performClose(sender)
@@ -320,8 +338,12 @@ final class MenuBarController: NSObject {
   }
 
   private func snoozeDetection() {
-    sessionManager.snoozeUntil = Date().addingTimeInterval(300)
-    dismissDetection()
+    let until = Date().addingTimeInterval(300)
+    sessionManager.snoozeUntil = until
+    let goal = sessionManager.currentSession?.goals ?? ""
+    popoverViewModel.state = .snoozed(until: until, goal: goal)
+    syncSessionStats()
+    popover.performClose(nil)
   }
 
   // MARK: - State (called from AppDelegate)
@@ -381,6 +403,7 @@ final class MenuBarController: NSObject {
 
   func endSession() {
     dictationService.cancel()
+    sessionManager.clearSnooze()
     sessionManager.endSession()
     triggerEngine.reset()
     popoverViewModel.state = .idle

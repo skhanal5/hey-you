@@ -52,11 +52,20 @@ func detectingEquality() {
   #expect(a == b)
 }
 
+@Test("Snoozed with same values are equal")
+func snoozedEquality() {
+  let d = Date()
+  let a = SessionState.snoozed(until: d, goal: "focus")
+  let b = SessionState.snoozed(until: d, goal: "focus")
+  #expect(a == b)
+}
+
 @Test("Different states are not equal")
 func differentStatesNotEqual() {
   #expect(SessionState.idle != SessionState.active(goal: "x", startTime: Date(), distractions: 0))
   #expect(SessionState.idle != SessionState.detecting(goal: "x", site: "y", fireCount: 1))
   #expect(SessionState.idle != SessionState.detection(goal: "x", site: "x", fireCount: 1, elapsedMinutes: 0, spokenMessage: ""))
+  #expect(SessionState.snoozed(until: Date.distantPast, goal: "x") != SessionState.snoozed(until: Date.distantFuture, goal: "x"))
 }
 
 // MARK: - PopoverViewModel
