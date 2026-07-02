@@ -13,7 +13,7 @@ final class TriggerEngine {
 
     private let sessionManager: SessionManager
     private let scheduler: Scheduler
-    private var trackingCancellable: Cancellable?
+    private var cancelTracking: (() -> Void)?
 
     var onStateChange: ((EngineState) -> Void)?
     var onTrigger: ((DoomscrollSignature) -> Void)?
@@ -41,7 +41,7 @@ final class TriggerEngine {
     private func beginTracking(_ sig: DoomscrollSignature) {
         state = .tracking(signature: sig, startTime: Date())
         let delay = threshold(for: sig)
-        trackingCancellable = scheduler.schedule(after: delay) { [weak self] in
+        cancelTracking = scheduler.schedule(after: delay) { [weak self] in
             self?.fireTrigger(sig)
         }
     }
@@ -65,8 +65,15 @@ final class TriggerEngine {
     }
 
     private func cancelTimers() {
-        trackingCancellable?.cancel()
-        trackingCancellable = nil
+        cancelTracking?()
+        cancelTracking = nil
+    }
+
+    /// User acknowledged a trigger (e.g. clicked "Back to it").
+    /// Clears the cooldown so the next doomscroll starts fresh tracking.
+    func acknowledgeTrigger() {
+        cancelTimers()
+        state = .focused
     }
 
     /// User acknowledged a trigger (e.g. clicked "Back to it").

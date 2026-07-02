@@ -11,12 +11,12 @@ final class TestScheduler: Scheduler {
   private var now = Date()
   private var blocks: [ScheduledBlock] = []
 
-  func schedule(after delay: TimeInterval, _ block: @escaping () -> Void) -> Cancellable {
+  func schedule(after delay: TimeInterval, _ block: @escaping () -> Void) -> () -> Void {
     let fireDate = now.addingTimeInterval(delay)
     let id = UUID()
     blocks.append(ScheduledBlock(id: id, fireDate: fireDate, block: block))
     blocks.sort { $0.fireDate < $1.fireDate }
-    return TestCancellable { [weak self] in
+    return { [weak self] in
       self?.blocks.removeAll { $0.id == id }
     }
   }
@@ -42,17 +42,5 @@ final class TestScheduler: Scheduler {
 
   func advanceUntil(deadline: Date) {
     advance(by: deadline.timeIntervalSince(now))
-  }
-}
-
-private final class TestCancellable: Cancellable {
-  private let onCancel: () -> Void
-
-  init(onCancel: @escaping () -> Void) {
-    self.onCancel = onCancel
-  }
-
-  func cancel() {
-    onCancel()
   }
 }
