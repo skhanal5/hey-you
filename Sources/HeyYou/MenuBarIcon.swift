@@ -14,7 +14,7 @@ enum AppIconState {
     switch sessionState {
     case .needsKey, .idle:
       self = .idle
-    case .active:
+    case .active, .snoozed:
       self = .active
     case .detecting, .detection:
       self = .detecting

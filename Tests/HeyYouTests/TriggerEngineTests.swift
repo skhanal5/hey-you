@@ -79,6 +79,7 @@ func triggeredSuppressesDuringCooldown() {
   let scheduler = TestScheduler()
   let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
   let sm = SessionManager()
+  sm.startSession(goals: "test")
   let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
   engine.classificationDidChange(.doomscroll(matchedBy: sig))
 
@@ -178,6 +179,23 @@ func acknowledgeClearsTriggered() {
   } else {
     Issue.record("Expected tracking state after acknowledge, got \(engine.state)")
   }
+}
+
+@Test("No session prevents trigger and resets to focused")
+func noSessionSuppressesTrigger() {
+  let scheduler = TestScheduler()
+  let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
+  let sm = SessionManager()
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
+  var triggerFired = false
+  engine.onTrigger = { _ in triggerFired = true }
+
+  engine.classificationDidChange(.doomscroll(matchedBy: sig))
+
+  scheduler.advance(by: 0.01)
+
+  #expect(!triggerFired)
+  #expect(engine.state == .focused)
 }
 
 @Test("Snooze suppresses trigger and resets to focused")

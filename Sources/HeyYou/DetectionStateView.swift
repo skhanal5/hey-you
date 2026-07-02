@@ -28,31 +28,8 @@ struct DetectionStateView: View {
         .foregroundColor(.white)
         .fixedSize(horizontal: false, vertical: true)
 
-      // Goal chip (red-tinted, only when there's an active goal)
       if !goal.isEmpty {
-        HStack(spacing: 6) {
-          Circle()
-            .fill(Color(red: 0.98, green: 0.44, blue: 0.52).opacity(0.7))
-            .frame(width: 5, height: 5)
-          (Text("Goal: ")
-            .font(.system(size: 12))
-            .foregroundColor(.white.opacity(0.4))
-            + Text(goal)
-            .font(.system(size: 12))
-            .foregroundColor(.white.opacity(0.6))
-          )
-          .lineLimit(1...3)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(red: 0.98, green: 0.44, blue: 0.52).opacity(0.06))
-        .cornerRadius(8)
-        .overlay(
-          RoundedRectangle(cornerRadius: 8)
-            .stroke(Color(red: 0.98, green: 0.44, blue: 0.52).opacity(0.2), lineWidth: 1)
-        )
+        GoalChipView(goal: goal, tint: StateColor.detectionRed())
       }
 
       // Action buttons

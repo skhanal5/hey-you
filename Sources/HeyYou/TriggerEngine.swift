@@ -47,7 +47,7 @@ final class TriggerEngine {
     }
 
     private func fireTrigger(_ sig: DoomscrollSignature) {
-        guard sessionManager.shouldTrigger() else {
+        guard sessionManager.isSessionActive, sessionManager.shouldTrigger() else {
             state = .focused
             return
         }
