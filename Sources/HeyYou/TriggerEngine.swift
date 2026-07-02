@@ -76,13 +76,6 @@ final class TriggerEngine {
         state = .focused
     }
 
-    /// User acknowledged a trigger (e.g. clicked "Back to it").
-    /// Clears the cooldown so the next doomscroll starts fresh tracking.
-    func acknowledgeTrigger() {
-        cancelTimers()
-        state = .focused
-    }
-
     func reset() {
         cancelTimers()
         state = .focused
