@@ -54,6 +54,7 @@ When implementing a feature based on a plan or discussion:
 
 4. **Learn from corrections** — When the user points out a mistake in reasoning or execution, add a note to AGENTS.md describing the mistake and how to avoid it. This is especially important for recurring patterns. Examples:
    - **Stale planning files in commits**: Internal implementation plans, scratch notes, and dev docs do not belong in the repo. They can live on disk but must not be tracked (`git rm --cached <file>` + add to `.gitignore`). Only commit code, tests, and documentation that serves end users or contributors.
+   - **Preflight checklist before PR**: The shipping workflow (`shipping.md`) requires a preflight checklist and a <500 line diff size. Before creating or finalizing a PR, output the checklist even if you think the changes are trivial. If the diff exceeds 500 lines, propose a split instead of pushing a single oversized PR.
 
 ## LLM
 
