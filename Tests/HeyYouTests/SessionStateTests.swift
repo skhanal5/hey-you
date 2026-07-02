@@ -45,9 +45,17 @@ func detectionEquality() {
   #expect(a == b)
 }
 
+@Test("Detecting with same values are equal")
+func detectingEquality() {
+  let a = SessionState.detecting(goal: "focus", site: "reddit.com", fireCount: 1)
+  let b = SessionState.detecting(goal: "focus", site: "reddit.com", fireCount: 1)
+  #expect(a == b)
+}
+
 @Test("Different states are not equal")
 func differentStatesNotEqual() {
   #expect(SessionState.idle != SessionState.active(goal: "x", startTime: Date(), distractions: 0))
+  #expect(SessionState.idle != SessionState.detecting(goal: "x", site: "y", fireCount: 1))
   #expect(SessionState.idle != SessionState.detection(goal: "x", site: "x", fireCount: 1, elapsedMinutes: 0, spokenMessage: ""))
 }
 

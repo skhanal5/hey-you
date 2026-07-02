@@ -44,14 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       switch state {
       case .focused:
         self.interventionService.stop()
-        self.menuBarController.setDetecting(false)
         self.menuBarController.resetDetectionCycle()
       case .tracking(let sig, let start):
         self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: start)
         self.menuBarController.ensureFirstDetectedAt()
       case .triggered:
-        self.menuBarController.setDetecting(true)
-        self.menuBarController.incrementFireCount()
+        self.menuBarController.setDetecting()
       }
     }
 
@@ -78,12 +76,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           self.menuBarController.showDetectionPopover(message: message)
           self.interventionService.speak(message)
         }
-      }
-    }
-
-    interventionService.onSpeakingChange = { [weak self] speaking in
-      Task { @MainActor in
-        self?.menuBarController.setSpeaking(speaking)
       }
     }
   }
