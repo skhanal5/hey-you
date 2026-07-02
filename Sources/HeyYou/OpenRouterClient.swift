@@ -47,7 +47,13 @@ final class OpenRouterClient {
         do {
             let (data, _) = try await session.data(for: urlRequest)
             let response = try JSONDecoder().decode(Response.self, from: data)
-            return response.choices.first?.message.content ?? ""
+            let content = response.choices.first?.message.content ?? ""
+            guard Self.isValidMessage(content) else {
+                throw Error.invalidResponse(content)
+            }
+            return content
+        } catch let err as Error {
+            throw err
         } catch let err as DecodingError {
             throw Error.decoding(err)
         } catch {
@@ -55,9 +61,21 @@ final class OpenRouterClient {
         }
     }
 
+    static func isValidMessage(_ content: String) -> Bool {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 10 else { return false }
+        let lower = trimmed.lowercased()
+        let guardrailPatterns = ["user safety:", "safety:", "harm category:", "content policy:"]
+        for pattern in guardrailPatterns {
+            if lower.hasPrefix(pattern) { return false }
+        }
+        return true
+    }
+
     enum Error: Swift.Error {
         case noKey
         case network(Swift.Error)
         case decoding(Swift.Error)
+        case invalidResponse(String)
     }
 }
