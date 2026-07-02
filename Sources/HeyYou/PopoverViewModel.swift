@@ -2,9 +2,7 @@ import Foundation
 import Combine
 
 final class PopoverViewModel: ObservableObject {
-  @Published var state: SessionState = .idle {
-    didSet { stateDidChange(from: oldValue) }
-  }
+  @Published var state: SessionState = .idle
   @Published var liveTranscription: String = ""
   @Published var isListening: Bool = false
   @Published var idleError: String?
@@ -20,6 +18,17 @@ final class PopoverViewModel: ObservableObject {
 
   let micPermissionDeniedMessage = "Microphone access is off. Enable it in System Settings → Privacy → Microphone."
   let recognitionErrorMessage = "Didn't catch that — try again"
+
+  private var cancellables = Set<AnyCancellable>()
+
+  init() {
+    $state
+      .dropFirst()
+      .sink { [weak self] newState in
+        self?.stateDidChange(to: newState)
+      }
+      .store(in: &cancellables)
+  }
 
   static func isOverLimit(_ text: String, maxLength: Int = 55) -> Bool {
     text.count > maxLength
@@ -65,10 +74,10 @@ final class PopoverViewModel: ObservableObject {
 
   private var snoozeTimer: AnyCancellable?
 
-  private func stateDidChange(from oldValue: SessionState) {
-    if case .snoozed(let until, _) = state {
+  private func stateDidChange(to newState: SessionState) {
+    if case .snoozed(let until, _) = newState {
       startSnoozeTimer(until: until)
-    } else if case .snoozed = oldValue {
+    } else {
       stopSnoozeTimer()
     }
   }
