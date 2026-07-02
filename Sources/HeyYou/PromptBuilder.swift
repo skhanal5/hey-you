@@ -11,14 +11,15 @@ enum PromptBuilder {
     - Humor is welcome (playful, witty, self-aware).
     - Be gently firm — a reminder, not a lecture.
     - Never sound like a generic motivational quote or notification.
+    - Must be a complete sentence — no sentence fragments.
     - Output raw — no prefixes, labels, quotes, or attribution.
 
     Examples (references task):
     - "Think we can squeeze in five more minutes of that essay?"
     - "Your code review isn't going to review itself."
-    - "Ready to finish the last section of the reading?"
-    - "The algorithm got you. Want to get back to the problem set?"
-    - "Side quest complete. Back to studying for the exam?"
+    - "Are you ready to finish the last section of the reading?"
+    - "The algorithm got you. Do you want to get back to the problem set?"
+    - "Side quest complete. You should get back to studying for the exam."
     """
   }
 
