@@ -9,6 +9,8 @@ struct IdleStateView: View {
   let onOpenSettings: () -> Void
 
   private static let maxGoalLength = 55
+  private static let overLimitError = "Goal too long (max \(Self.maxGoalLength) characters)"
+  private static let noSpeechError = "No speech detected — try again"
 
   @State private var goalText = ""
   @State private var recordingError: String?
@@ -34,7 +36,7 @@ struct IdleStateView: View {
           errorText(error)
             .padding(.bottom, 4)
         } else if isOverLimit {
-          errorText("Goal too long (max \(Self.maxGoalLength) characters)")
+          errorText(Self.overLimitError)
             .padding(.bottom, 4)
         }
         inputSection
@@ -95,7 +97,7 @@ struct IdleStateView: View {
           guard isRecording else { return }
           if text.count > Self.maxGoalLength {
             goalText = String(text.prefix(Self.maxGoalLength))
-            recordingError = "Goal too long (max \(Self.maxGoalLength) characters)"
+            recordingError = Self.overLimitError
           } else {
             goalText = text
             recordingError = nil
@@ -207,7 +209,7 @@ struct IdleStateView: View {
     } else if !viewModel.liveTranscription.isEmpty {
       goalText = viewModel.liveTranscription
     } else {
-      recordingError = "No speech detected — try again"
+      recordingError = Self.noSpeechError
     }
   }
 }

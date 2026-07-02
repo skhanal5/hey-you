@@ -11,9 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private lazy var openRouter = OpenRouterClient(keychain: keychain)
   private var menuBarController: MenuBarController!
 
-  private var trackingSignature: DoomscrollSignature?
-  private var trackingStart: Date?
-
   func applicationDidFinishLaunching(_ notification: Notification) {
     menuBarController = MenuBarController(
       sessionManager: sessionManager,
@@ -50,8 +47,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.menuBarController.setDetecting(false)
         self.menuBarController.resetDetectionCycle()
       case .tracking(let sig, let start):
-        self.trackingSignature = sig
-        self.trackingStart = start
         self.menuBarController.updateDetectionContext(site: sig.name, trackingStart: start)
         self.menuBarController.ensureFirstDetectedAt()
       case .triggered:
