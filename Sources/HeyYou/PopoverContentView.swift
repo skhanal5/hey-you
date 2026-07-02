@@ -17,7 +17,6 @@ struct PopoverContentView: View {
   var onEndSession: () -> Void = {}
 
   // Detection callbacks
-  var onDismissDetection: () -> Void = {}
   var onBackToWork: () -> Void = {}
   var onSnooze: () -> Void = {}
 
@@ -54,7 +53,6 @@ struct PopoverContentView: View {
           fireCount: fireCount,
           elapsedMinutes: elapsedMinutes,
           spokenMessage: spokenMessage,
-          onDismiss: onDismissDetection,
           onBackToWork: onBackToWork,
           onSnooze: onSnooze
         )

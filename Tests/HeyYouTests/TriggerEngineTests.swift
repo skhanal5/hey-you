@@ -151,6 +151,35 @@ func productiveDuringCooldown() {
   }
 }
 
+@Test("Acknowledge clears triggered state for next doomscroll")
+func acknowledgeClearsTriggered() {
+  let scheduler = TestScheduler()
+  let sig = DoomscrollSignature(name: "Test", patterns: ["test"], threshold: 0.01, repeatThreshold: 0.01)
+  let sm = SessionManager()
+  sm.startSession(goals: "test")
+  let engine = TriggerEngine(sessionManager: sm, scheduler: scheduler)
+  engine.classificationDidChange(.doomscroll(matchedBy: sig))
+
+  scheduler.advance(by: 0.01)
+
+  guard case .triggered = engine.state else {
+    Issue.record("Expected triggered state")
+    return
+  }
+
+  engine.acknowledgeTrigger()
+
+  #expect(engine.state == .focused)
+
+  // Next doomscroll should start tracking immediately (no cooldown block)
+  engine.classificationDidChange(.doomscroll(matchedBy: sig))
+  if case .tracking(let s, _) = engine.state {
+    #expect(s == sig)
+  } else {
+    Issue.record("Expected tracking state after acknowledge, got \(engine.state)")
+  }
+}
+
 @Test("Snooze suppresses trigger and resets to focused")
 func snoozeSuppressesTrigger() {
   let scheduler = TestScheduler()

@@ -30,7 +30,7 @@ final class OpenRouterClientTests {
         let keychain = FakeKeychain(key: "test-key")
         let client = OpenRouterClient(keychain: keychain, session: session)
         // Act
-        let result = try await client.generate(prompt: "hi")
+        let result = try await client.generate(systemPrompt: "You are helpful.", userPrompt: "hi")
         // Assert
         #expect(result == "Hello world")
     }

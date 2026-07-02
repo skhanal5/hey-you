@@ -64,13 +64,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       guard let self else { return }
       let count = sessionManager.currentSession?.triggerCount ?? 0
       let goals = sessionManager.currentSession?.goals
-      let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: count, goals: goals)
+      let systemPrompt = PromptBuilder.buildSystemPrompt()
+      let userPrompt = PromptBuilder.buildUserPrompt(for: sig, triggerCount: count, goals: goals)
 
       Task {
         let message: String
         if let key = self.keychain.read() {
           do {
-            message = try await self.openRouter.generate(prompt: prompt)
+            message = try await self.openRouter.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
           } catch {
             print("[HeyYou] LLM error: \(error)")
             message = PromptBuilder.fallbackMessage(for: sig, triggerCount: count, goals: goals)

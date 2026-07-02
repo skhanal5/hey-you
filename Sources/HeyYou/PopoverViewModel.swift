@@ -15,6 +15,14 @@ final class PopoverViewModel: ObservableObject {
   let micPermissionDeniedMessage = "Microphone access is off. Enable it in System Settings → Privacy → Microphone."
   let recognitionErrorMessage = "Didn't catch that — try again"
 
+  static func isOverLimit(_ text: String, maxLength: Int = 55) -> Bool {
+    text.count > maxLength
+  }
+
+  static func canConfirm(goalText: String, hasError: Bool, maxLength: Int = 55) -> Bool {
+    !goalText.isEmpty && !isOverLimit(goalText, maxLength: maxLength) && !hasError
+  }
+
   func startListening() {
     idleError = nil
     isListening = true

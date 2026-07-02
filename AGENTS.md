@@ -55,6 +55,16 @@ When implementing a feature based on a plan or discussion:
 4. **Learn from corrections** — When the user points out a mistake in reasoning or execution, add a note to AGENTS.md describing the mistake and how to avoid it. This is especially important for recurring patterns. Examples:
    - **Stale planning files in commits**: Internal implementation plans, scratch notes, and dev docs do not belong in the repo. They can live on disk but must not be tracked (`git rm --cached <file>` + add to `.gitignore`). Only commit code, tests, and documentation that serves end users or contributors.
 
+## LLM
+
+- Use system/user message split for OpenRouter API. System role carries persona/instructions; user role carries per-request context (task, site, trigger count).
+- Keep example messages in the system prompt concise (8–12 max). Too many examples cause small models to pattern-match instead of generating fresh, context-aware output.
+- Validation logic should be extracted as static pure functions on the view model for testability. No dependencies, easy to unit test exhaustively.
+
+## Detection popover
+
+- Do not include a close (X) button. The only dismiss paths are "Back to it" and "5 more min" — both explicitly signal user intent. An X button causes confusion when it transitions state unexpectedly (it calls `dismissDetection()` which sets state to `.active`).
+
 ## Menu bar app conventions
 
 - Activation policy is `.accessory` (no Dock icon, no app switcher entry). Set via `LSUIElement` in Info.plist **and** `app.setActivationPolicy(.accessory)` in `main.swift` before `app.run()`.

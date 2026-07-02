@@ -124,7 +124,6 @@ final class MenuBarController: NSObject {
       onOpenSettings: { [weak self] in self?.openMicrophoneSettings() },
       onSaveApiKey: { [weak self] key in self?.saveApiKey(key) },
       onEndSession: { [weak self] in self?.endSession() },
-      onDismissDetection: { [weak self] in self?.dismissDetection() },
       onBackToWork: { [weak self] in self?.dismissDetection() },
       onSnooze: { [weak self] in self?.snoozeDetection() }
     )
@@ -297,6 +296,10 @@ final class MenuBarController: NSObject {
       popoverViewModel.idleError = "No goal detected — try again"
       return
     }
+    guard goal.count <= 55 else {
+      popoverViewModel.idleError = "Goal too long (max 55 characters)"
+      return
+    }
     guard keychain.read() != nil else {
       popoverViewModel.idleError = "Configure an API key in Preferences before starting a session."
       return
@@ -315,6 +318,7 @@ final class MenuBarController: NSObject {
 
   private func dismissDetection() {
     interventionService.stop()
+    triggerEngine.acknowledgeTrigger()
     let goals = sessionManager.currentSession?.goals ?? ""
     let triggers = sessionManager.currentSession?.triggerCount ?? 0
     state = .active(goals: goals, triggers: triggers)

@@ -25,9 +25,9 @@ enum MenuBarIcon {
     let size: CGFloat = 18
     let center = CGPoint(x: size / 2, y: size / 2)
     let innerRadius: CGFloat = 4.5
-    let innerStroke: CGFloat = 2.5
-    let outerStroke: CGFloat = 1.5
-    let outerRadiusMax: CGFloat = innerRadius * 1.7
+    let innerStroke: CGFloat = 1.5
+    let outerStroke: CGFloat = 1.0
+    let outerRadiusMax: CGFloat = innerRadius * 2.5
 
     let image = NSImage(size: NSSize(width: size, height: size))
     image.isTemplate = true
@@ -46,7 +46,7 @@ enum MenuBarIcon {
       break
 
     case .listening:
-      let pulse = 1.0 + 0.08 * sin(CGFloat(animPhase * 4.2))
+      let pulse = 1.0 + 0.15 * sin(CGFloat(animPhase * 4.2))
       let r = innerRadius * pulse
       let rect = NSRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
       let path = NSBezierPath(ovalIn: rect)
@@ -57,7 +57,7 @@ enum MenuBarIcon {
     case .active:
       let t = (animPhase.truncatingRemainder(dividingBy: 2)) / 2
       let r = innerRadius + (outerRadiusMax - innerRadius) * t
-      let alpha = 0.6 * (1 - t)
+      let alpha = 0.8 * (1 - t)
 
       let outerRect = NSRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
       let outerPath = NSBezierPath(ovalIn: outerRect)

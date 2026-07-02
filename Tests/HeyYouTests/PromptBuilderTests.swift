@@ -1,21 +1,29 @@
 import Testing
 @testable import HeyYou
 
-@Test("Build prompt includes site name and goals")
+@Test("Build user prompt includes site name and goals")
 func promptIncludesSiteAndGoals() {
   let sig = DoomscrollSignature(name: "Reddit", patterns: ["Reddit"], threshold: 30, repeatThreshold: 15)
-  let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: 2, goals: "work on project")
+  let prompt = PromptBuilder.buildUserPrompt(for: sig, triggerCount: 2, goals: "work on project")
   #expect(prompt.contains("Reddit"))
   #expect(prompt.contains("work on project"))
   #expect(prompt.contains("Times caught this session: 2"))
 }
 
-@Test("Build prompt with nil goals")
+@Test("Build user prompt with nil goals")
 func promptWithNilGoals() {
   let sig = DoomscrollSignature(name: "X", patterns: ["X"], threshold: 30, repeatThreshold: 15)
-  let prompt = PromptBuilder.buildPrompt(for: sig, triggerCount: 0, goals: nil)
+  let prompt = PromptBuilder.buildUserPrompt(for: sig, triggerCount: 0, goals: nil)
   #expect(prompt.contains("none set"))
   #expect(prompt.contains("Times caught this session: 0"))
+}
+
+@Test("System prompt is non-empty, mentions task reference, and has examples")
+func systemPromptNonEmpty() {
+  let prompt = PromptBuilder.buildSystemPrompt()
+  #expect(!prompt.isEmpty)
+  #expect(prompt.contains("MUST reference"))
+  #expect(prompt.contains("Examples"))
 }
 
 @Test("Fallback message first trigger with goals")
