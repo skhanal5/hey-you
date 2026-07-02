@@ -31,7 +31,7 @@ final class OpenRouterClient {
         let message: Message
     }
 
-    func generate(prompt: String) async throws -> String {
+    func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         guard let key = keychain.read() else {
             throw Error.noKey
         }
@@ -39,7 +39,11 @@ final class OpenRouterClient {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        let body = Request(model: model, messages: [Message(role: "user", content: prompt)])
+        let messages = [
+            Message(role: "system", content: systemPrompt),
+            Message(role: "user", content: userPrompt),
+        ]
+        let body = Request(model: model, messages: messages)
         urlRequest.httpBody = try JSONEncoder().encode(body)
         do {
             let (data, _) = try await session.data(for: urlRequest)

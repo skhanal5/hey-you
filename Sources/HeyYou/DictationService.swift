@@ -190,11 +190,20 @@ final class DictationService {
 
     isStreaming = false
 
+    let result = bestTranscription.isEmpty ? nil : bestTranscription
+
     engine.stop()
     engine.inputNode.removeTap(onBus: 0)
     recognitionRequest?.endAudio()
+    recognitionTask?.cancel()
 
-    return bestTranscription.isEmpty ? nil : bestTranscription
+    let sc = streamingContinuation
+    streamingContinuation = nil
+    sc?.resume(returning: bestTranscription)
+
+    cleanup()
+
+    return result
   }
 
   // MARK: - Cancel / Cleanup
@@ -216,6 +225,7 @@ final class DictationService {
   // MARK: - Private
 
   private func cleanup() {
+    recognitionTask?.cancel()
     audioEngine = nil
     recognitionRequest = nil
     recognitionTask = nil

@@ -76,3 +76,10 @@ func cancelAfterStop() {
   _ = service.stopListening()
   service.cancel()
 }
+
+@Test("stopListening returns nil when not streaming")
+func stopListeningNotStreaming() {
+  let service = DictationService()
+  let result = service.stopListening()
+  #expect(result == nil)
+}

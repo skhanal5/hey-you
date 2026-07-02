@@ -109,3 +109,55 @@ func confirmSessionGuardClearsOnRetry() {
   vm.idleError = nil
   #expect(vm.idleError == nil)
 }
+
+// MARK: - Validation helpers
+
+@Test("isOverLimit returns false for empty text")
+func isOverLimitEmpty() {
+  #expect(PopoverViewModel.isOverLimit("", maxLength: 55) == false)
+}
+
+@Test("isOverLimit returns false for text just under the limit")
+func isOverLimitJustUnder() {
+  let text = String(repeating: "a", count: 54)
+  #expect(PopoverViewModel.isOverLimit(text, maxLength: 55) == false)
+}
+
+@Test("isOverLimit returns false for text exactly at the limit")
+func isOverLimitAtLimit() {
+  let text = String(repeating: "a", count: 55)
+  #expect(PopoverViewModel.isOverLimit(text, maxLength: 55) == false)
+}
+
+@Test("isOverLimit returns true for text exceeding the limit")
+func isOverLimitExceeded() {
+  let text = String(repeating: "a", count: 56)
+  #expect(PopoverViewModel.isOverLimit(text, maxLength: 55) == true)
+}
+
+@Test("canConfirm returns false when goal text is empty")
+func canConfirmNoText() {
+  #expect(PopoverViewModel.canConfirm(goalText: "", hasError: false) == false)
+}
+
+@Test("canConfirm returns true for valid goal text with no error")
+func canConfirmValid() {
+  #expect(PopoverViewModel.canConfirm(goalText: "focus", hasError: false) == true)
+}
+
+@Test("canConfirm returns false when text exceeds the limit")
+func canConfirmOverLimit() {
+  let text = String(repeating: "a", count: 56)
+  #expect(PopoverViewModel.canConfirm(goalText: text, hasError: false) == false)
+}
+
+@Test("canConfirm returns false when there is a recording error")
+func canConfirmWithRecordingError() {
+  #expect(PopoverViewModel.canConfirm(goalText: "focus", hasError: true) == false)
+}
+
+@Test("canConfirm returns false when both over limit and recording error")
+func canConfirmBoth() {
+  let text = String(repeating: "a", count: 56)
+  #expect(PopoverViewModel.canConfirm(goalText: text, hasError: true) == false)
+}

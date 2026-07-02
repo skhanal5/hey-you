@@ -8,8 +8,18 @@ struct IdleStateView: View {
   let onDismiss: () -> Void
   let onOpenSettings: () -> Void
 
+  private static let maxGoalLength = 55
+
   @State private var goalText = ""
   @State private var recordingError: String?
+
+  private var isOverLimit: Bool {
+    PopoverViewModel.isOverLimit(goalText, maxLength: Self.maxGoalLength)
+  }
+
+  private var canConfirm: Bool {
+    PopoverViewModel.canConfirm(goalText: goalText, hasError: recordingError != nil, maxLength: Self.maxGoalLength)
+  }
 
   private var isRecording: Bool { viewModel.isListening }
 
@@ -20,10 +30,14 @@ struct IdleStateView: View {
       if let error = viewModel.idleError {
         errorContent(error)
       } else {
-        inputSection
         if let error = recordingError {
           errorText(error)
+            .padding(.bottom, 4)
+        } else if isOverLimit {
+          errorText("Goal too long (max \(Self.maxGoalLength) characters)")
+            .padding(.bottom, 4)
         }
+        inputSection
       }
 
       bottomBar
@@ -53,6 +67,7 @@ struct IdleStateView: View {
         .font(.system(size: 13, weight: .regular).italic())
         .foregroundColor(.white.opacity(0.38))
     }
+    .padding(.bottom, 8)
   }
 
   // MARK: - Input
@@ -71,13 +86,20 @@ struct IdleStateView: View {
             .stroke(.white.opacity(0.08), lineWidth: 1)
         )
         .disabled(isRecording)
-        .onReceive(viewModel.$liveTranscription) { text in
-          guard isRecording else { return }
-          goalText = text
-        }
         .onChange(of: goalText) { _ in
+          guard !isRecording else { return }
           recordingError = nil
           viewModel.idleError = nil
+        }
+        .onReceive(viewModel.$liveTranscription) { text in
+          guard isRecording else { return }
+          if text.count > Self.maxGoalLength {
+            goalText = String(text.prefix(Self.maxGoalLength))
+            recordingError = "Goal too long (max \(Self.maxGoalLength) characters)"
+          } else {
+            goalText = text
+            recordingError = nil
+          }
         }
 
       micButton
@@ -131,7 +153,7 @@ struct IdleStateView: View {
   private func errorText(_ message: String) -> some View {
     Text(message)
       .font(.system(size: 12))
-      .foregroundColor(StateColor.activeGreen().opacity(0.7))
+      .foregroundColor(.red.opacity(0.8))
       .transition(.opacity)
   }
 
@@ -140,6 +162,9 @@ struct IdleStateView: View {
   private var bottomBar: some View {
     HStack(spacing: 8) {
       Button("Not now") {
+        if isRecording {
+          _ = onStopListening()
+        }
         goalText = ""
         viewModel.liveTranscription = ""
         viewModel.isListening = false
@@ -151,8 +176,8 @@ struct IdleStateView: View {
       Button("Confirm") {
         onConfirmGoal(goalText)
       }
-      .buttonStyle(PrimaryButtonStyle(isEnabled: !goalText.isEmpty))
-      .disabled(goalText.isEmpty)
+      .buttonStyle(PrimaryButtonStyle(isEnabled: canConfirm))
+      .disabled(!canConfirm)
     }
   }
 
@@ -231,6 +256,28 @@ struct GhostButtonStyle: ButtonStyle {
           .overlay(
             Capsule()
               .stroke(Color.white.opacity(0.08), lineWidth: 1)
+          )
+      )
+      .animation(.easeInOut(duration: 0.15), value: isHovering)
+      .onHover { hovering in isHovering = hovering }
+  }
+}
+
+struct DangerButtonStyle: ButtonStyle {
+  @State private var isHovering = false
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(.system(size: 13, weight: .semibold))
+      .foregroundColor(.white.opacity(0.95))
+      .frame(maxWidth: .infinity)
+      .frame(height: 36)
+      .background(
+        Capsule()
+          .fill(
+            isHovering
+              ? StateColor.detectionRed().opacity(0.85)
+              : StateColor.detectionRed()
           )
       )
       .animation(.easeInOut(duration: 0.15), value: isHovering)

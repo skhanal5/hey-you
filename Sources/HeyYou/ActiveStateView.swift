@@ -35,7 +35,8 @@ struct ActiveStateView: View {
         Text(goal)
           .font(.system(size: 12))
           .foregroundColor(.white.opacity(0.8))
-          .lineLimit(1)
+          .lineLimit(1...3)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(.horizontal, 10)
       .padding(.vertical, 8)
@@ -75,14 +76,7 @@ struct ActiveStateView: View {
       Button("End session") {
         onEndSession()
       }
-      .font(.system(size: 13, weight: .regular))
-      .foregroundColor(.white.opacity(0.35))
-      .padding(.vertical, 10)
-      .frame(maxWidth: .infinity)
-      .overlay(
-        RoundedRectangle(cornerRadius: 10)
-          .stroke(.white.opacity(0.07), lineWidth: 1)
-      )
+      .buttonStyle(DangerButtonStyle())
     }
     .padding(20)
     .onReceive(timer) { date in
@@ -101,8 +95,9 @@ struct ActiveStateView: View {
   }
 
   private var formattedTotalTime: String {
-    let hours = Int(totalFocusTime) / 3600
-    let minutes = (Int(totalFocusTime) % 3600) / 60
+    let total = totalFocusTime + elapsed
+    let hours = Int(total) / 3600
+    let minutes = (Int(total) % 3600) / 60
     if hours > 0 {
       return "\(hours)h \(minutes)m"
     }
@@ -116,7 +111,6 @@ struct ActiveStateView: View {
         .foregroundColor(tint.opacity(0.8))
       Text(key)
         .font(.system(size: 10))
-        .kerning(1)
         .foregroundColor(.white.opacity(0.28))
     }
     .frame(maxWidth: .infinity)

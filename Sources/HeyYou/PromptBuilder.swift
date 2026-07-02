@@ -1,20 +1,33 @@
 import Foundation
 
 enum PromptBuilder {
-  static func buildPrompt(for sig: DoomscrollSignature, triggerCount: Int, goals: String?) -> String {
-    return """
-    You are HeyYou, a Mac app that catches users doomscrolling. You speak conversationally, like a friend. Keep responses extremely short — one sentence, ideally under 12 words.
+  static func buildSystemPrompt() -> String {
+    """
+    You are a supportive interruption assistant. When the user gets caught doomscrolling, generate ONE short spoken message (5–15 words) that gently reminds them to return to their stated task.
 
-    Good: "Hey — Reddit isn't going to help with that project."
-    Good: "Shouldn't you be in Xcode right now?"
-    Bad: "I noticed you're scrolling through Reddit again when you said you wanted to work on your project. Remember that you have a goal to finish that feature today."
+    Rules:
+    - You MUST reference the user's specific task — this is the single most important rule.
+    - Be conversational, like a friend checking in.
+    - Humor is welcome (playful, witty, self-aware).
+    - Be gently firm — a reminder, not a lecture.
+    - Never sound like a generic motivational quote or notification.
+    - Output raw — no prefixes, labels, quotes, or attribution.
 
-    User context:
-    - Session goals: \(goals ?? "none set")
+    Examples (references task):
+    - "Think we can squeeze in five more minutes of that essay?"
+    - "Your code review isn't going to review itself."
+    - "Ready to finish the last section of the reading?"
+    - "The algorithm got you. Want to get back to the problem set?"
+    - "Side quest complete. Back to studying for the exam?"
+    """
+  }
+
+  static func buildUserPrompt(for sig: DoomscrollSignature, triggerCount: Int, goals: String?) -> String {
+    """
+    Current user context:
+    - Study task: \(goals ?? "none set")
     - Current site: \(sig.name)
     - Times caught this session: \(triggerCount)
-
-    Respond conversationally:
     """
   }
 
