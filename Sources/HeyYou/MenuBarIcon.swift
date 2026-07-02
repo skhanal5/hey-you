@@ -6,15 +6,17 @@ enum AppIconState {
   case active
   case detecting
 
-  init(from state: MenuBarState) {
-    switch state {
-    case .idle:
-      self = .idle
-    case .listening:
+  init(from sessionState: SessionState, isListening: Bool = false) {
+    if isListening {
       self = .listening
+      return
+    }
+    switch sessionState {
+    case .needsKey, .idle:
+      self = .idle
     case .active:
       self = .active
-    case .detecting, .speaking:
+    case .detecting, .detection:
       self = .detecting
     }
   }

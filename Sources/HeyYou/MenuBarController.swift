@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 struct DetectionCycle {
@@ -32,10 +33,6 @@ final class MenuBarController: NSObject {
   private let openRouter: OpenRouterClient
   private let keychain: KeychainServiceProtocol
 
-  private var state: MenuBarState = .idle {
-    didSet { stateDidChange() }
-  }
-
   private var animPhase: CGFloat = 0
   private var animTimer: Timer?
   private var lastFrameTime: Date?
@@ -61,6 +58,7 @@ final class MenuBarController: NSObject {
 
     super.init()
 
+    setupObservers()
     setupStatusItem()
     setupPopover()
     if keychain.read() == nil {
@@ -74,7 +72,7 @@ final class MenuBarController: NSObject {
 
   private func setupStatusItem() {
     guard let button = statusItem.button else { return }
-    button.image = MenuBarIcon.make(iconState: AppIconState(from: state), animPhase: animPhase)
+    button.image = MenuBarIcon.make(iconState: AppIconState(from: popoverViewModel.state), animPhase: animPhase)
     button.imagePosition = .imageLeft
     button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     button.target = self
@@ -181,10 +179,27 @@ final class MenuBarController: NSObject {
     }
   }
 
+  // MARK: - Observers
+
+  private func setupObservers() {
+    popoverViewModel.$state
+      .combineLatest(popoverViewModel.$isListening)
+      .sink { [weak self] _, _ in
+        self?.updateIcon()
+      }
+      .store(in: &cancellables)
+  }
+
+  private var cancellables: Set<AnyCancellable> = []
+
   // MARK: - Icon
 
   private func updateIcon() {
-    statusItem.button?.image = MenuBarIcon.make(iconState: AppIconState(from: state), animPhase: animPhase)
+    let iconState = AppIconState(
+      from: popoverViewModel.state,
+      isListening: popoverViewModel.isListening
+    )
+    statusItem.button?.image = MenuBarIcon.make(iconState: iconState, animPhase: animPhase)
   }
 
   // MARK: - Animation
@@ -195,7 +210,11 @@ final class MenuBarController: NSObject {
     animPhase = 0
     lastFrameTime = Date()
 
-    switch AppIconState(from: state) {
+    let iconState = AppIconState(
+      from: popoverViewModel.state,
+      isListening: popoverViewModel.isListening
+    )
+    switch iconState {
     case .idle, .detecting:
       updateIcon()
     case .listening, .active:
@@ -213,8 +232,9 @@ final class MenuBarController: NSObject {
     }
   }
 
-  private func stateDidChange() {
-    updateAnimationTimer()
+  private func syncSessionStats() {
+    popoverViewModel.sessionsToday = sessionManager.sessionsToday
+    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
   }
 
   private func computeElapsedMinutes() -> Int {
@@ -222,54 +242,19 @@ final class MenuBarController: NSObject {
     return Int(Date().timeIntervalSince(start) / 60)
   }
 
-  // MARK: - Popover State (explicit, not synced from MenuBarState)
-
-  private func setPopoverActive() {
-    let goals = sessionManager.currentSession?.goals ?? ""
-    let triggers = sessionManager.currentSession?.triggerCount ?? 0
-    popoverViewModel.state = .active(
-      goal: goals,
-      startTime: sessionManager.currentSession?.startTime ?? Date(),
-      distractions: triggers
-    )
-    popoverViewModel.sessionsToday = sessionManager.sessionsToday
-    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
-  }
-
-  private func setPopoverIdle() {
-    popoverViewModel.state = .idle
-  }
+  // MARK: - Detection Context (called from AppDelegate)
 
   func ensureFirstDetectedAt() {
     detectionCycle.ensureFirstDetectedAt()
-  }
-
-  func incrementFireCount() {
-    detectionCycle.incrementFireCount()
   }
 
   func resetDetectionCycle() {
     detectionCycle.reset()
   }
 
-  private func setPopoverDetection(message: String) {
-    let goals = sessionManager.currentSession?.goals ?? ""
-    let site = lastDetectedSite ?? "Unknown"
-    let elapsed: Int
-    if let first = detectionCycle.firstDetectedAt {
-      elapsed = Int(Date().timeIntervalSince(first) / 60)
-    } else {
-      elapsed = 0
-    }
-    popoverViewModel.state = .detection(
-      goal: goals,
-      site: site,
-      fireCount: detectionCycle.fireCount,
-      elapsedMinutes: elapsed,
-      spokenMessage: message
-    )
-    popoverViewModel.sessionsToday = sessionManager.sessionsToday
-    popoverViewModel.totalFocusTime = sessionManager.totalFocusTimeToday
+  func updateDetectionContext(site: String, trackingStart: Date?) {
+    lastDetectedSite = site
+    lastTrackingStart = trackingStart
   }
 
   // MARK: - Popover Actions
@@ -305,8 +290,12 @@ final class MenuBarController: NSObject {
       return
     }
     sessionManager.startSession(goals: goal)
-    state = .active(goals: goal, triggers: 0)
-    setPopoverActive()
+    popoverViewModel.state = .active(
+      goal: goal,
+      startTime: sessionManager.currentSession?.startTime ?? Date(),
+      distractions: 0
+    )
+    syncSessionStats()
     print("[HeyYou] Session started: \(goal)")
   }
 
@@ -321,8 +310,12 @@ final class MenuBarController: NSObject {
     triggerEngine.acknowledgeTrigger()
     let goals = sessionManager.currentSession?.goals ?? ""
     let triggers = sessionManager.currentSession?.triggerCount ?? 0
-    state = .active(goals: goals, triggers: triggers)
-    setPopoverActive()
+    popoverViewModel.state = .active(
+      goal: goals,
+      startTime: sessionManager.currentSession?.startTime ?? Date(),
+      distractions: triggers
+    )
+    syncSessionStats()
     popover.performClose(nil)
   }
 
@@ -333,18 +326,16 @@ final class MenuBarController: NSObject {
 
   // MARK: - State (called from AppDelegate)
 
-  func setDetecting(_ detecting: Bool) {
-    state = state.settingDetecting(detecting)
-  }
-
-  func setSpeaking(_ speaking: Bool) {
-    state = state.settingSpeaking(speaking)
-  }
-
-  /// Store detection context when a trigger fires
-  func updateDetectionContext(site: String, trackingStart: Date?) {
-    lastDetectedSite = site
-    lastTrackingStart = trackingStart
+  func setDetecting() {
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let site = lastDetectedSite ?? "Unknown"
+    detectionCycle.incrementFireCount()
+    popoverViewModel.state = .detecting(
+      goal: goals,
+      site: site,
+      fireCount: detectionCycle.fireCount
+    )
+    syncSessionStats()
   }
 
   private func saveApiKey(_ key: String) {
@@ -365,7 +356,22 @@ final class MenuBarController: NSObject {
 
   /// Show the detection state in the popover when a trigger fires
   func showDetectionPopover(message: String) {
-    setPopoverDetection(message: message)
+    let goals = sessionManager.currentSession?.goals ?? ""
+    let site = lastDetectedSite ?? "Unknown"
+    let elapsed: Int
+    if let first = detectionCycle.firstDetectedAt {
+      elapsed = Int(Date().timeIntervalSince(first) / 60)
+    } else {
+      elapsed = 0
+    }
+    popoverViewModel.state = .detection(
+      goal: goals,
+      site: site,
+      fireCount: detectionCycle.fireCount,
+      elapsedMinutes: elapsed,
+      spokenMessage: message
+    )
+    syncSessionStats()
 
     guard let button = statusItem.button else { return }
     popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -377,8 +383,8 @@ final class MenuBarController: NSObject {
     dictationService.cancel()
     sessionManager.endSession()
     triggerEngine.reset()
-    state = .idle
-    setPopoverIdle()
+    popoverViewModel.state = .idle
+    syncSessionStats()
     print("[HeyYou] Session ended")
   }
 
